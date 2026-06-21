@@ -1,10 +1,11 @@
 [project]
 name = "ap-invoice-selfserve-mcpb"
-version = "0.4.0"
-description = "AP Invoice Exception Review self-serve MCPB demo"
+version = "0.6.0"
+description = "AP Invoice Exception Review self-serve MCPB demo with Claude OCR smoke gate"
 requires-python = ">=3.11"
 dependencies = [
   "mcp>=1.2",
+  "pillow>=10.0",
   "pydantic>=2.5",
   "pyyaml>=6.0",
 ]

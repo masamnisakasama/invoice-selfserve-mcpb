@@ -1,10 +1,10 @@
 {
   "manifest_version": "0.4",
-  "name": "ap-invoice-review",
-  "display_name": "AP Invoice Review — Folder Demo",
-  "version": "0.4.0",
-  "description": "Self-serve MCPB for deterministic AP invoice exception review.",
-  "long_description": "Review AP invoice folders by detecting invoice, purchase order, and goods receipt PDFs from a visible local folder. Includes bundled demo PDFs exported to Documents/APInvoiceDemo. Never uses Airtable, Google Drive, or external ERP/SaaS writes.",
+  "name": "ap-invoice-review-claude-ocr",
+  "display_name": "AP Invoice Review — Claude OCR",
+  "version": "0.6.0",
+  "description": "Self-serve AP invoice MCPB with a Claude OCR image-result Go/No-Go smoke test.",
+  "long_description": "Milestone 0 validates whether Claude Desktop can OCR MCPB tool-result image content before the AP review flow is migrated away from legacy sidecars. OCR smoke results are written only to _runs/<run_id>/ocr_results. Never uses Airtable, Google Drive, or external ERP/SaaS writes.",
   "author": {
     "name": "masamnisakasama"
   },
@@ -21,6 +21,14 @@
     }
   },
   "tools": [
+    {
+      "name": "ap_invoice_ocr_smoke_test",
+      "description": "Return a fixed invoice PNG as MCP image content so Claude Desktop can perform OCR."
+    },
+    {
+      "name": "ap_invoice_submit_ocr_smoke_test_result",
+      "description": "Validate Claude's OCR smoke result and save it under _runs/<run_id>/ocr_results."
+    },
     {
       "name": "ap_invoice_setup_demo_workspace",
       "description": "Export bundled demo PDFs to a visible local Documents/APInvoiceDemo folder."

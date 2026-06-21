@@ -22,6 +22,8 @@ def test_skill_contains_v2_ux_guardrails() -> None:
     assert "Do not search external connector registry" in skill
     assert "Do not search Airtable" in skill
     assert "Do not use Google Drive unless the user explicitly asks for Google Drive" in skill
+    assert "ap_invoice_ocr_smoke_test" in skill
+    assert "ap_invoice_submit_ocr_smoke_test_result" in skill
     assert "If the user gives a folder path, call `ap_invoice_review_folder`" in skill
     assert "Show visible local PDF paths before review" in skill
     assert "Prefer high-level tools" in skill
@@ -35,7 +37,9 @@ def test_manifest_lists_high_level_tools_before_low_level_tools() -> None:
     manifest = json.loads((PROJECT_ROOT / "manifest.json").read_text("utf-8"))
     tools = [tool["name"] for tool in manifest["tools"]]
 
-    assert tools[:7] == [
+    assert tools[:9] == [
+        "ap_invoice_ocr_smoke_test",
+        "ap_invoice_submit_ocr_smoke_test_result",
         "ap_invoice_setup_demo_workspace",
         "ap_invoice_list_demo_cases",
         "ap_invoice_preview_folder",

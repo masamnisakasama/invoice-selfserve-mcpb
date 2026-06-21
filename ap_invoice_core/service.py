@@ -11,6 +11,11 @@ from typing import Any
 from .engine import RULESET_VERSION, WORKFLOW_PACK, review_invoice_packet
 from .extraction import load_canonical_from_documents
 from .models import DecisionResult, Evidence, Recommendation, RuleResult
+from .ocr_smoke import (
+    build_ocr_smoke_test,
+    default_visible_workspace,
+    submit_ocr_smoke_test_result,
+)
 
 
 DOCUMENT_TYPES = ("invoice", "purchase_order", "goods_receipt")
@@ -149,7 +154,7 @@ class ReviewService:
         self.pack_dir = self.project_root / "workflow-packs" / WORKFLOW_PACK
         self.artifact_root = Path(artifact_root or self.project_root / "artifacts").resolve()
         self.default_workspace_dir = Path(
-            default_workspace_dir or Path.home() / "Documents" / "APInvoiceDemo"
+            default_workspace_dir or default_visible_workspace()
         ).resolve()
         self.allowed_upload_roots = [
             (self.project_root / "samples").resolve(),
@@ -293,6 +298,21 @@ class ReviewService:
             "workspace_initialized": _workspace_initialized(workspace_dir),
             "write_performed": False,
         }
+
+    def create_ocr_smoke_test(self) -> dict[str, Any]:
+        return build_ocr_smoke_test(self.default_workspace_dir.resolve())
+
+    def submit_ocr_smoke_test_result(
+        self,
+        *,
+        run_id: str,
+        ocr_result: dict[str, Any],
+    ) -> dict[str, Any]:
+        return submit_ocr_smoke_test_result(
+            workspace_dir=self.default_workspace_dir.resolve(),
+            run_id=run_id,
+            ocr_result=ocr_result,
+        )
 
     def setup_demo_workspace(
         self,

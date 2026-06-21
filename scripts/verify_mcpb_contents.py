@@ -16,6 +16,8 @@ REQUIRED_CASES = (
 )
 REQUIRED_DOCS = ("invoice", "purchase_order", "goods_receipt")
 REQUIRED_TOOLS = (
+    "ap_invoice_ocr_smoke_test",
+    "ap_invoice_submit_ocr_smoke_test_result",
     "ap_invoice_setup_demo_workspace",
     "ap_invoice_list_demo_cases",
     "ap_invoice_preview_folder",
@@ -41,8 +43,12 @@ def main() -> None:
         else:
             manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
         version = str(manifest.get("version", "0"))
-        if _version_tuple(version) < (0, 4, 0):
-            failures.append(f"manifest version must be >= 0.4.0, got {version}")
+        if _version_tuple(version) < (0, 6, 0):
+            failures.append(f"manifest version must be >= 0.6.0, got {version}")
+        if manifest.get("name") != "ap-invoice-review-claude-ocr":
+            failures.append("manifest name must be ap-invoice-review-claude-ocr")
+        if "Claude OCR" not in str(manifest.get("display_name", "")):
+            failures.append("manifest display_name must mention Claude OCR")
         tools = [tool.get("name") for tool in manifest.get("tools", [])]
         for required_tool in REQUIRED_TOOLS:
             if required_tool not in tools:

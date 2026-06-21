@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import CallToolResult, ImageContent, TextContent
 
 from ap_invoice_core.engine import RULESET_VERSION, WORKFLOW_PACK
 from ap_invoice_core.service import ReviewService
@@ -18,6 +19,33 @@ def _default_project_root() -> Path:
 
 service = ReviewService(project_root=_default_project_root())
 mcp = FastMCP("AP Invoice Exception Review MCPB")
+
+
+@mcp.tool()
+def ap_invoice_ocr_smoke_test() -> CallToolResult:
+    """Return a fixed invoice image as MCP image content for Claude OCR Go/No-Go."""
+    result = service.create_ocr_smoke_test()
+    return CallToolResult(
+        content=[
+            TextContent(type="text", text=str(result["instruction_text"])),
+            ImageContent(
+                type="image",
+                data=str(result["image_base64"]),
+                mimeType=str(result["image_mime_type"]),
+            ),
+        ],
+        structuredContent=result["structured_content"],
+        isError=False,
+    )
+
+
+@mcp.tool()
+def ap_invoice_submit_ocr_smoke_test_result(
+    run_id: str,
+    ocr_result: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate and save Claude's OCR result for the fixed smoke-test invoice image."""
+    return service.submit_ocr_smoke_test_result(run_id=run_id, ocr_result=ocr_result)
 
 
 @mcp.tool()
@@ -191,8 +219,11 @@ def build_erp_draft_payload(
 )
 def ap_demo() -> str:
     return (
-        "AP Invoice demoを開始します。Airtable、Google Drive、外部connector registryは"
-        "検索しないでください。まずap_invoice_setup_demo_workspaceを呼び、"
+        "AP Invoice demoを開始します。vNextのClaude OCR版では、まず"
+        "ap_invoice_ocr_smoke_testを呼び、返された画像をClaude vision/OCRで読み、"
+        "ap_invoice_submit_ocr_smoke_test_resultへinvoice_numberとtotal_amountを"
+        "submitしてください。Airtable、Google Drive、外部connector registryは"
+        "検索しないでください。Milestone 0通過後にap_invoice_setup_demo_workspaceを呼び、"
         "Documents/APInvoiceDemoへサンプルPDFを展開してください。次に"
         "ap_invoice_list_demo_casesでcase-aからcase-fを業務価値つきで表示してください。"
         "レビュー前に可視PDFパスを表示し、外部ERP/SaaSへの書き込みは行わないことを"
@@ -208,14 +239,19 @@ def ap_review(case_id: str = "") -> str:
     if case_id:
         return (
             f"{case_id} をAP請求書packetとしてレビューします。"
-            "ap_invoice_review_demo_caseを呼び、判定・例外理由・根拠・次アクション・"
+            "Claude OCR smoke testの実機Goが未確認なら先にap_invoice_ocr_smoke_testを"
+            "実行してください。Go確認済みの場合のみap_invoice_review_demo_caseを呼び、"
+            "判定・例外理由・根拠・次アクション・"
             "draft payload summary・write_performed=falseを日本語で表示してください。"
         )
     return (
-        "AP Invoice reviewを実行します。フォルダパスがあればap_invoice_review_folderを"
-        "呼んでください。case指定があればap_invoice_review_demo_caseを優先してください。"
-        "何も指定がなければap_invoice_setup_demo_workspaceとap_invoice_list_demo_casesを"
-        "呼んでください。Airtableや外部registryは検索しないでください。"
+        "AP Invoice reviewを実行します。Claude OCR smoke testの実機Goが未確認なら先に"
+        "ap_invoice_ocr_smoke_testを呼び、返された画像をOCRして"
+        "ap_invoice_submit_ocr_smoke_test_resultへsubmitしてください。Go確認済みで"
+        "フォルダパスがあればap_invoice_review_folderを呼んでください。case指定があれば"
+        "ap_invoice_review_demo_caseを優先してください。何も指定がなければ"
+        "ap_invoice_setup_demo_workspaceとap_invoice_list_demo_casesを呼んでください。"
+        "Airtableや外部registryは検索しないでください。"
     )
 
 
