@@ -16,6 +16,9 @@ SKILL_PATH = (
 )
 WORKFLOW_SKILL_PATH = PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "SKILL.md"
 SLASH_COMMAND_PATH = PROJECT_ROOT / "commands" / "ap-review.md"
+PROJECT_SLASH_COMMAND_PATH = PROJECT_ROOT / ".claude" / "commands" / "ap-review.md"
+PROJECT_SKILL_PATH = PROJECT_ROOT / ".claude" / "skills" / "ap-review" / "SKILL.md"
+BOM = b"\xef\xbb\xbf"
 
 
 def test_skill_contains_v2_ux_guardrails() -> None:
@@ -48,6 +51,11 @@ def test_workflow_skill_contains_desktop_auto_flow_guardrails() -> None:
     assert "available checks" not in skill
 
 
+def test_project_skill_and_command_mirror_release_sources() -> None:
+    assert PROJECT_SLASH_COMMAND_PATH.read_text("utf-8") == SLASH_COMMAND_PATH.read_text("utf-8")
+    assert PROJECT_SKILL_PATH.read_text("utf-8") == WORKFLOW_SKILL_PATH.read_text("utf-8")
+
+
 def test_ap_review_slash_command_enforces_deterministic_ocr_flow() -> None:
     command = SLASH_COMMAND_PATH.read_text("utf-8")
 
@@ -65,6 +73,21 @@ def test_ap_review_slash_command_enforces_deterministic_ocr_flow() -> None:
     assert "レガシーツール（list_ap_demo_cases, review_ap_demo_case 等）の使用" in command
     assert "フォールバックや代替フロー" in command
     assert "ERP/SaaS への書き込みが行われたと示唆すること" in command
+
+
+def test_release_text_metadata_is_bom_free() -> None:
+    paths = [
+        PROJECT_ROOT / ".claude-plugin" / "plugin.json",
+        PROJECT_ROOT / ".mcp.json",
+        PROJECT_ROOT / "manifest.json",
+        SLASH_COMMAND_PATH,
+        PROJECT_SLASH_COMMAND_PATH,
+        WORKFLOW_SKILL_PATH,
+        PROJECT_SKILL_PATH,
+    ]
+
+    for path in paths:
+        assert not path.read_bytes().startswith(BOM), f"BOM is forbidden: {path}"
 
 
 def test_manifest_lists_high_level_tools_before_low_level_tools() -> None:
@@ -85,6 +108,28 @@ def test_manifest_lists_high_level_tools_before_low_level_tools() -> None:
     ]
     assert tools.index("ap_invoice_review_folder") < tools.index("create_ap_review_case")
     assert tools.index("ap_invoice_build_resolution_pack") < tools.index("create_ap_review_case")
+
+
+def test_manifest_declares_static_ap_prompts_for_desktop_discovery() -> None:
+    manifest = json.loads((PROJECT_ROOT / "manifest.json").read_text("utf-8"))
+    prompts = {prompt["name"]: prompt for prompt in manifest["prompts"]}
+
+    assert list(prompts) == [
+        "ap-demo",
+        "ap-review",
+        "ap-explain",
+        "ap-approval-brief",
+        "ap-resolution-pack",
+    ]
+    assert prompts["ap-review"]["arguments"] == ["case_id"]
+    prompt_text = prompts["ap-review"]["text"]
+    assert "ap_invoice_review_demo_case" in prompt_text
+    assert "ap_invoice_prepare_ocr_run" in prompt_text
+    assert "ap_invoice_submit_ocr_result" in prompt_text
+    assert "ap_invoice_review_from_ocr_result" in prompt_text
+    assert "確認質問" in prompt_text
+    assert "fallbackは禁止" in prompt_text
+    assert "write_performed=false" in prompt_text
 
 
 def test_high_level_tool_descriptions_are_ux_focused() -> None:

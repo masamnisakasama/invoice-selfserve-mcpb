@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-import shutil
+import os
+import time
 from datetime import date, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -14,6 +15,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ROOT_SAMPLES = PROJECT_ROOT / "samples"
 PACK_SAMPLES = PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "samples"
 PACK_TESTS = PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "tests"
+SAMPLE_LOCK = PROJECT_ROOT / "dist" / ".sample-generation.lock"
+SAMPLE_LOCK_ENV = "AP_SAMPLE_GENERATION_LOCKED"
+LOCK_POLL_SECONDS = 0.2
+LOCK_TIMEOUT_SECONDS = 120.0
 PDF_METADATA_DATE = "D:20260101000000Z"
 PAGE_SIZE = (1240, 1754)
 INK = "#1F2933"
@@ -119,7 +124,7 @@ def write_document_pdf(path: Path, *, document_type: str, fields: dict[str, Any]
         creationDate=PDF_METADATA_DATE,
         modDate=PDF_METADATA_DATE,
     )
-    path.write_bytes(buffer.getvalue())
+    _write_bytes_atomic(path, buffer.getvalue())
 
 
 def _draw_invoice(draw: ImageDraw.ImageDraw, fields: dict[str, Any]) -> None:
@@ -640,7 +645,7 @@ def _text(
 
 def _text_width(draw: ImageDraw.ImageDraw, text: str, font: Any) -> int:
     bbox = draw.textbbox((0, 0), text, font=font)
-    return bbox[2] - bbox[0]
+    return int(bbox[2] - bbox[0])
 
 
 def _center_text(
@@ -738,7 +743,7 @@ CASES: dict[str, dict[str, Any]] = {
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", "utf-8")
+    _write_text_atomic(path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
 
 
 def write_case(base_dir: Path, case_name: str, payload: dict[str, Any]) -> None:
@@ -752,13 +757,31 @@ def write_case(base_dir: Path, case_name: str, payload: dict[str, Any]) -> None:
         )
 
 
-def main() -> None:
+def acquire_sample_generation_lock() -> None:
+    SAMPLE_LOCK.parent.mkdir(exist_ok=True)
+    deadline = time.monotonic() + LOCK_TIMEOUT_SECONDS
+    while True:
+        try:
+            SAMPLE_LOCK.mkdir()
+            (SAMPLE_LOCK / "pid").write_text(str(os.getpid()), encoding="ascii")
+            return
+        except FileExistsError:
+            if time.monotonic() >= deadline:
+                raise SystemExit(f"Timed out waiting for sample generation lock: {SAMPLE_LOCK}")
+            time.sleep(LOCK_POLL_SECONDS)
+
+
+def release_sample_generation_lock() -> None:
+    pid_file = SAMPLE_LOCK / "pid"
+    if pid_file.exists():
+        pid_file.unlink()
+    if SAMPLE_LOCK.exists():
+        SAMPLE_LOCK.rmdir()
+
+
+def write_samples() -> None:
     for target in (ROOT_SAMPLES, PACK_SAMPLES):
-        if target.exists():
-            shutil.rmtree(target)
         target.mkdir(parents=True, exist_ok=True)
-    if PACK_TESTS.exists():
-        shutil.rmtree(PACK_TESTS)
     PACK_TESTS.mkdir(parents=True, exist_ok=True)
     for target in (ROOT_SAMPLES, PACK_SAMPLES):
         for case_name, payload in CASES.items():
@@ -774,6 +797,63 @@ def main() -> None:
                 "write_performed": False,
             },
         )
+    _remove_unexpected_generated_files(ROOT_SAMPLES)
+    _remove_unexpected_generated_files(PACK_SAMPLES)
+    _remove_unexpected_expected_files(PACK_TESTS)
+
+
+def _write_bytes_atomic(path: Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_bytes(payload)
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
+def _write_text_atomic(path: Path, payload: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(payload, encoding="utf-8")
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
+def _remove_unexpected_generated_files(samples_root: Path) -> None:
+    expected = {
+        samples_root / case_name / f"{document_type}.pdf"
+        for case_name in CASES
+        for document_type in ("invoice", "purchase_order", "goods_receipt")
+    }
+    for path in samples_root.rglob("*"):
+        if path.is_file() and path not in expected:
+            path.unlink()
+
+
+def _remove_unexpected_expected_files(expected_root: Path) -> None:
+    expected = {
+        expected_root / f"expected-case-{chr(ord('a') + index)}.json"
+        for index in range(len(CASES))
+    }
+    for path in expected_root.glob("expected-case-*.json"):
+        if path not in expected:
+            path.unlink()
+
+
+def main() -> None:
+    if os.environ.get(SAMPLE_LOCK_ENV) == "1":
+        write_samples()
+    else:
+        acquire_sample_generation_lock()
+        try:
+            write_samples()
+        finally:
+            release_sample_generation_lock()
     print(f"Generated {len(CASES)} AP fixture cases in {ROOT_SAMPLES}")
 
 

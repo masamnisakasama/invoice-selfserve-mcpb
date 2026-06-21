@@ -114,6 +114,37 @@
       "description": "Blocked advanced tool: draft payloads are included in completed OCR review results."
     }
   ],
+  "prompts": [
+    {
+      "name": "ap-demo",
+      "description": "Start the bundled AP Invoice Exception Review demo.",
+      "text": "AP Invoiceデモを開始します。ap_invoice_setup_demo_workspaceを呼び、Documents/APInvoiceDemoへPDFのみのサンプルを展開してください。次にap_invoice_list_demo_casesを呼び、case-aからcase-fを表示してください。レビュー時は必ずap_invoice_prepare_ocr_run、Claude OCR、ap_invoice_submit_ocr_result、ap_invoice_review_from_ocr_resultの順に進め、Airtable、Google Drive、外部connector registryは検索しないでください。"
+    },
+    {
+      "name": "ap-review",
+      "description": "Review an AP invoice demo case or PDF-only local folder with Claude OCR.",
+      "arguments": ["case_id"],
+      "text": "${arguments.case_id} をAP請求書packetとしてレビューします。case-aからcase-fの場合はap_invoice_setup_demo_workspace、ap_invoice_review_demo_case、Claude OCR、ap_invoice_submit_ocr_result、ap_invoice_review_from_ocr_resultの順で実行してください。フォルダパスの場合はap_invoice_prepare_ocr_run、Claude OCR、ap_invoice_submit_ocr_result、ap_invoice_review_from_ocr_resultの順で実行してください。確認質問、ファイル探索、レガシーツール、fallbackは禁止です。write_performed=falseを必ず明示してください。"
+    },
+    {
+      "name": "ap-explain",
+      "description": "Explain a completed AP review exception.",
+      "arguments": ["job_id"],
+      "text": "job_id=${arguments.job_id} のAP例外理由を説明します。ap_invoice_explain_exceptionを呼び、根拠・rule_id・次アクションを日本語で示してください。"
+    },
+    {
+      "name": "ap-approval-brief",
+      "description": "Build an approver-facing AP decision packet.",
+      "arguments": ["job_id"],
+      "text": "job_id=${arguments.job_id} の承認者向け判断パケットを作ります。ap_invoice_build_approval_briefを呼び、支払判断・リスク・根拠・write_performed=falseを短くまとめてください。"
+    },
+    {
+      "name": "ap-resolution-pack",
+      "description": "Build practical AP next-action messages from a completed review.",
+      "arguments": ["run_id"],
+      "text": "run_id=${arguments.run_id} のAP Resolution Packを作ります。ap_invoice_build_resolution_packを呼び、AP担当者・購買担当・取引先・承認者向けの次アクション、確認文、必要証跡、write_performed=falseを日本語でまとめてください。"
+    }
+  ],
   "keywords": ["accounts-payable", "invoice", "mcp", "mcpb", "workflow-pack"],
   "license": "MIT",
   "compatibility": {

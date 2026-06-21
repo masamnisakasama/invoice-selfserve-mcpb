@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
+import fitz
 import pytest
 
-from tests.helpers import load_expected, review_case
+from tests.helpers import SAMPLES_DIR, ensure_samples, load_expected, review_case
 
 
 CASES = [
@@ -15,6 +17,8 @@ CASES = [
     "case-e-grn-mismatch",
     "case-f-tax-review",
 ]
+DOCS = ("invoice", "purchase_order", "goods_receipt")
+MIN_VISUAL_RMS_DIFF = 18.0
 
 
 @pytest.mark.parametrize("case_name", CASES)
@@ -38,3 +42,39 @@ def test_case_b_explains_po_amount_difference(tmp_path: Path) -> None:
     assert po_match["status"] == "mismatch"
     assert po_match["details"]["amount_diff"] == 11000
     assert po_match["details"]["within_tolerance"] is False
+
+
+@pytest.mark.parametrize("case_name", CASES)
+def test_fixture_pdfs_are_distinct_form_designs(case_name: str) -> None:
+    ensure_samples()
+    rendered = {
+        doc: _render_pdf_bytes(SAMPLES_DIR / case_name / f"{doc}.pdf")
+        for doc in DOCS
+    }
+
+    for left, right in (
+        ("invoice", "purchase_order"),
+        ("invoice", "goods_receipt"),
+        ("purchase_order", "goods_receipt"),
+    ):
+        diff = _rms_diff(rendered[left], rendered[right])
+        assert diff >= MIN_VISUAL_RMS_DIFF, f"{case_name}: {left} vs {right} RMS={diff:.2f}"
+
+
+def _render_pdf_bytes(path: Path) -> tuple[int, int, bytes]:
+    document = fitz.open(path)
+    try:
+        page = document.load_page(0)
+        pixmap = page.get_pixmap(matrix=fitz.Matrix(0.12, 0.12), alpha=False)
+        return pixmap.width, pixmap.height, bytes(pixmap.samples)
+    finally:
+        document.close()
+
+
+def _rms_diff(left: tuple[int, int, bytes], right: tuple[int, int, bytes]) -> float:
+    left_width, left_height, left_samples = left
+    right_width, right_height, right_samples = right
+    if (left_width, left_height) != (right_width, right_height):
+        return 255.0
+    squared_error = sum((a - b) ** 2 for a, b in zip(left_samples, right_samples))
+    return math.sqrt(squared_error / len(left_samples))

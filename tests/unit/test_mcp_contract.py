@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 from mcp.types import CallToolResult
@@ -78,6 +79,15 @@ def test_mcp_prompts_list_is_stable() -> None:
         "ap-resolution-pack",
         "ap-review",
     ]
+
+
+def test_manifest_static_prompts_match_mcp_prompt_names() -> None:
+    prompts = asyncio.run(mcp.list_prompts())
+    manifest = json.loads((PROJECT_ROOT / "manifest.json").read_text("utf-8"))
+
+    assert sorted(prompt["name"] for prompt in manifest["prompts"]) == sorted(
+        prompt.name for prompt in prompts
+    )
 
 
 def test_prepare_ocr_run_tool_returns_image_content(tmp_path: Path) -> None:

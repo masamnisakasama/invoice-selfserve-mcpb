@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "ap-invoice-review",
   "version": "0.7.2",
   "description": "AP Invoice 3-way match review with Claude OCR and next-action resolution packs. One command: 'case-a をレビューして'",
