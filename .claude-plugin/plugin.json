@@ -1,0 +1,8 @@
+﻿{
+  "name": "ap-invoice-review",
+  "version": "0.7.1",
+  "description": "AP Invoice 3-way match review with Claude OCR. One command: 'case-a をレビューして'",
+  "author": { "name": "masamnisakasama" },
+  "repository": { "type": "git", "url": "https://github.com/masamnisakasama/invoice-selfserve-mcpb.git" },
+  "license": "MIT"
+}

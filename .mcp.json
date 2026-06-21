@@ -1,0 +1,8 @@
+﻿{
+  "mcpServers": {
+    "AP Invoice Review — Claude OCR": {
+      "command": "uv",
+      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}", "python", "-m", "ap_invoice_mcp"]
+    }
+  }
+}
