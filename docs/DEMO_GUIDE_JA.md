@@ -48,18 +48,49 @@ write_performed=false
 
 | 入力 | 期待される判定 | 見せたいポイント |
 |---|---|---|
-| `case-a-pay-ready` | `PAY_READY_CANDIDATE` | 3点照合が通り、支払候補になる |
-| `case-b-po-mismatch` | `REFER_PO_MISMATCH` | PO金額と請求金額の差異 |
+| `case-a-pay-ready` | `PAY_READY_CANDIDATE` | 3点照合が通り、110,000円の支払候補になる |
+| `case-b-po-mismatch` | `REFER_PO_MISMATCH` | 請求121,000円とPO110,000円の差異 |
 | `case-c-duplicate` | `REFER_DUPLICATE_REVIEW` | 過去請求との重複疑い |
-| `case-d-vendor-review` | `REFER_VENDOR_REVIEW` | 取引先マスタ不一致 |
-| `case-e-grn-mismatch` | `REFER_GRN_MISMATCH` | 検収数量不足 |
-| `case-f-tax-review` | `REFER_TAX_REVIEW` | 税額計算不一致 |
+| `case-d-vendor-review` | `REFER_VENDOR_REVIEW` | 請求書口座と取引先マスタ口座の不一致 |
+| `case-e-grn-mismatch` | `REFER_GRN_MISMATCH` | 発注100個に対して検収60個 |
+| `case-f-tax-review` | `REFER_TAX_REVIEW` | 税額8,000円と期待税額10,000円の差異 |
 
 例:
 
 ```text
 AP Invoice Review MCPBを使って、case-b-po-mismatchをレビューしてください。PDFをOCRして、日本語で結果を返してください。
 ```
+
+判定後に、次のように依頼できます。
+
+```text
+Resolution Packを出してください。購買担当、取引先、承認者向けの次アクションを日本語でください。
+```
+
+```text
+承認者向けのapproval briefを作ってください。
+```
+
+## 自分のPDFフォルダで試す場合
+
+通常のデモは同梱ケースだけで十分です。自分のPDFで試す場合は、先にMCPBでデモワークスペースを作成し、その配下に3つのPDFを置いてください。
+
+必要なPDF:
+
+| 帳票 | ファイル名の目安 |
+|---|---|
+| 請求書 | `invoice.pdf` または `invoice` を含む名前 |
+| 発注書 | `purchase_order.pdf` または `purchase_order` を含む名前 |
+| 納品書/検収書 | `goods_receipt.pdf` または `goods_receipt` を含む名前 |
+
+依頼例:
+
+```text
+AP Invoice Review MCPBを使って、このフォルダのPDFをレビューしてください:
+~/Documents/APInvoiceDemo/my-case
+```
+
+このフローでも、入力フォルダにJSON sidecarを置かないでください。PDF画像をClaudeがOCRし、その結果をMCPBへsubmitする流れを確認します。
 
 ## slash commandについて
 

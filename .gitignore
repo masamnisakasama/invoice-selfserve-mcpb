@@ -17,6 +17,7 @@ code-review-report-*.pdf
 samples/tmp-security-*/
 .tmp-workspaces/
 
-# Keep the demo MCPB package, ignore other ad-hoc dist outputs.
+# Keep the demo MCPB package and plugin bundle, ignore other ad-hoc dist outputs.
 dist/*
 !dist/ap-invoice-review.mcpb
+!dist/ap-invoice-review.plugin
