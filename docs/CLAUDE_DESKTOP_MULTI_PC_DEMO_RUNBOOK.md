@@ -59,6 +59,7 @@ make verify-no-answer-sidecars
 make verify-mcpb-contents
 make verify-ap-data-boundary
 make verify-ocr-smoke-gate
+make verify-e2e-ocr-flow
 make smoke-ap-mcp
 ```
 
@@ -319,6 +320,7 @@ make verify-no-answer-sidecars
 make verify-mcpb-contents
 make verify-ap-data-boundary
 make verify-ocr-smoke-gate
+make verify-e2e-ocr-flow
 make smoke-ap-mcp
 ```
 

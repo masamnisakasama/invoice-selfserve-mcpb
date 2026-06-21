@@ -14,6 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ROOT_SAMPLES = PROJECT_ROOT / "samples"
 PACK_SAMPLES = PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "samples"
 PACK_TESTS = PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "tests"
+PDF_METADATA_DATE = "D:20260101000000Z"
 
 
 def line_item(amount: int = 100000, quantity: int = 100) -> dict[str, Any]:
@@ -111,7 +112,13 @@ def write_document_pdf(path: Path, *, document_type: str, fields: dict[str, Any]
 
     draw.text((90, 1640), "Fictional AP Invoice OCR demo data only", fill="black", font=small_font)
     buffer = BytesIO()
-    image.save(buffer, format="PDF", resolution=150.0)
+    image.save(
+        buffer,
+        format="PDF",
+        resolution=150.0,
+        creationDate=PDF_METADATA_DATE,
+        modDate=PDF_METADATA_DATE,
+    )
     path.write_bytes(buffer.getvalue())
 
 
