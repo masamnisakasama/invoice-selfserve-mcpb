@@ -13,6 +13,8 @@ __pycache__/
 
 # Runtime artifacts
 artifacts/
+code-review-report-*.pdf
+samples/tmp-security-*/
 
 # Keep the demo MCPB package, ignore other ad-hoc dist outputs.
 dist/*

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -30,11 +31,18 @@ def _fv(document_type: str, document_name: str, field: str, value: Any) -> Field
     return FieldValue(value=value, confidence=0.99, evidence=[_ev(document_type, document_name, field, value)])
 
 
-def _load_sidecar(pdf_path: Path) -> dict[str, Any]:
+def _load_sidecar(pdf_path: Path, expected_document_type: str) -> dict[str, Any]:
     sidecar = pdf_path.with_suffix(".json")
     if not sidecar.is_file():
         raise FileNotFoundError(f"Missing extraction sidecar: {sidecar}")
-    return json.loads(sidecar.read_text("utf-8"))
+    data = json.loads(sidecar.read_text("utf-8"))
+    actual_document_type = data.get("document_type")
+    if actual_document_type != expected_document_type:
+        raise ValueError(
+            f"Sidecar document_type mismatch for {pdf_path.name}: "
+            f"expected {expected_document_type}, got {actual_document_type}"
+        )
+    return data
 
 
 def load_canonical_from_documents(
@@ -43,9 +51,9 @@ def load_canonical_from_documents(
     purchase_order_pdf: str | Path,
     goods_receipt_pdf: str | Path,
 ) -> CanonicalFacts:
-    invoice_data = _load_sidecar(Path(invoice_pdf))
-    po_data = _load_sidecar(Path(purchase_order_pdf))
-    grn_data = _load_sidecar(Path(goods_receipt_pdf))
+    invoice_data = _load_sidecar(Path(invoice_pdf), "invoice")
+    po_data = _load_sidecar(Path(purchase_order_pdf), "purchase_order")
+    grn_data = _load_sidecar(Path(goods_receipt_pdf), "goods_receipt")
     return CanonicalFacts(
         invoice=_invoice(invoice_data, Path(invoice_pdf).name),
         purchase_order=_po(po_data, Path(purchase_order_pdf).name),
@@ -54,11 +62,24 @@ def load_canonical_from_documents(
 
 
 def _line_items(items: list[dict[str, Any]]) -> list[InvoiceLineItem]:
-    return [InvoiceLineItem(**item) for item in items]
+    line_items = [InvoiceLineItem(**item) for item in items]
+    for item in line_items:
+        _require_positive_number("line_items.quantity", item.quantity)
+        _require_non_negative_number("line_items.unit_price", item.unit_price)
+        _require_non_negative_number("line_items.amount", item.amount)
+    return line_items
 
 
 def _invoice(data: dict[str, Any], document_name: str) -> InvoiceFacts:
     fields = data["fields"]
+    _validate_iso_date("invoice_date", fields["invoice_date"])
+    if fields.get("due_date"):
+        _validate_iso_date("due_date", fields["due_date"])
+    for field in ("subtotal_amount", "tax_amount", "total_amount"):
+        _require_non_negative_number(field, fields[field])
+    _require_non_empty("invoice_number", fields["invoice_number"])
+    _require_non_empty("vendor_id", fields["vendor_id"])
+    _require_non_empty("po_number", fields["po_number"])
     dt = "invoice"
     return InvoiceFacts(
         invoice_number=_fv(dt, document_name, "invoice_number", fields["invoice_number"]),
@@ -80,6 +101,10 @@ def _invoice(data: dict[str, Any], document_name: str) -> InvoiceFacts:
 
 def _po(data: dict[str, Any], document_name: str) -> PurchaseOrderFacts:
     fields = data["fields"]
+    _require_non_empty("po_number", fields["po_number"])
+    _require_non_empty("vendor_id", fields["vendor_id"])
+    _require_non_negative_number("total_amount", fields["total_amount"])
+    _require_non_negative_number("remaining_balance", fields["remaining_balance"])
     dt = "purchase_order"
     return PurchaseOrderFacts(
         po_number=_fv(dt, document_name, "po_number", fields["po_number"]),
@@ -94,6 +119,10 @@ def _po(data: dict[str, Any], document_name: str) -> PurchaseOrderFacts:
 
 def _grn(data: dict[str, Any], document_name: str) -> GoodsReceiptFacts:
     fields = data["fields"]
+    _require_non_empty("receipt_number", fields["receipt_number"])
+    _require_non_empty("po_number", fields["po_number"])
+    _require_non_negative_number("received_quantity", fields["received_quantity"])
+    _validate_iso_date("receipt_date", fields["receipt_date"])
     dt = "goods_receipt"
     return GoodsReceiptFacts(
         receipt_number=_fv(dt, document_name, "receipt_number", fields["receipt_number"]),
@@ -103,3 +132,25 @@ def _grn(data: dict[str, Any], document_name: str) -> GoodsReceiptFacts:
         receipt_date=_fv(dt, document_name, "receipt_date", fields["receipt_date"]),
     )
 
+
+def _require_non_empty(field: str, value: Any) -> None:
+    if value is None or str(value).strip() == "":
+        raise ValueError(f"{field} is required")
+
+
+def _require_non_negative_number(field: str, value: Any) -> None:
+    number = float(value)
+    if number < 0:
+        raise ValueError(f"{field} must be non-negative")
+
+
+def _require_positive_number(field: str, value: Any) -> None:
+    number = float(value)
+    if number <= 0:
+        raise ValueError(f"{field} must be positive")
+
+
+def _validate_iso_date(field: str, value: Any) -> None:
+    parsed = date.fromisoformat(str(value))
+    if parsed.year < 2000:
+        raise ValueError(f"{field} is outside the supported demo date range")

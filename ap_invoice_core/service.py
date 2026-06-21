@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,7 @@ class ReviewCase:
     case_label: str
     documents: dict[str, UploadedDocument] = field(default_factory=dict)
     result: DecisionResult | None = None
+    completed_job_id: str | None = None
 
 
 @dataclass
@@ -51,10 +53,12 @@ class ReviewService:
         self.project_root = Path(project_root or Path.cwd()).resolve()
         self.pack_dir = self.project_root / "workflow-packs" / WORKFLOW_PACK
         self.artifact_root = Path(artifact_root or self.project_root / "artifacts").resolve()
+        self.allowed_upload_roots = (
+            (self.project_root / "samples").resolve(),
+            (self.pack_dir / "samples").resolve(),
+        )
         self._cases: dict[str, ReviewCase] = {}
         self._jobs: dict[str, ReviewJob] = {}
-        self._case_seq = 0
-        self._job_seq = 0
 
     def create_case(
         self,
@@ -68,8 +72,7 @@ class ReviewService:
             raise ValueError(f"Unsupported workflow_pack: {workflow_pack}")
         if ruleset_version != RULESET_VERSION:
             raise ValueError(f"Unsupported ruleset_version: {ruleset_version}")
-        self._case_seq += 1
-        case_id = f"AP-CASE-{self._case_seq:04d}"
+        case_id = f"AP-CASE-{uuid.uuid4().hex[:12].upper()}"
         self._cases[case_id] = ReviewCase(
             case_id=case_id,
             tenant_id=tenant_id,
@@ -91,6 +94,8 @@ class ReviewService:
 
     def upload_document(self, *, case_id: str, document_type: str, file_path: str) -> dict[str, Any]:
         case = self._require_case(case_id)
+        if case.result is not None:
+            raise ValueError(f"Case {case_id} is already completed; documents cannot be modified.")
         if document_type not in DOCUMENT_TYPES:
             raise ValueError(f"Unsupported document_type: {document_type}")
         path = self._resolve_user_path(file_path)
@@ -114,11 +119,12 @@ class ReviewService:
 
     def start_review(self, *, case_id: str) -> dict[str, Any]:
         case = self._require_case(case_id)
+        if case.result is not None and case.completed_job_id is not None:
+            return {"job_id": case.completed_job_id, "case_id": case_id, "status": "completed"}
         missing = [document_type for document_type in DOCUMENT_TYPES if document_type not in case.documents]
         if missing:
             raise ValueError(f"Missing required documents: {', '.join(missing)}")
-        self._job_seq += 1
-        job_id = f"job-{self._job_seq:04d}"
+        job_id = f"job-{uuid.uuid4().hex[:12]}"
         job = ReviewJob(job_id=job_id, case_id=case_id, status="running")
         self._jobs[job_id] = job
         try:
@@ -135,6 +141,7 @@ class ReviewService:
                 artifact_dir=self.artifact_root / case_id,
             )
             case.result = result
+            case.completed_job_id = job_id
             job.result = result
             job.status = "completed"
         except Exception as exc:
@@ -191,4 +198,18 @@ class ReviewService:
         path = Path(file_path).expanduser()
         if not path.is_absolute():
             path = self.project_root / path
-        return path.resolve()
+        resolved = path.resolve()
+        if resolved.suffix.lower() != ".pdf":
+            raise PermissionError("Only .pdf demo documents can be uploaded.")
+        if not any(_is_relative_to(resolved, root) for root in self.allowed_upload_roots):
+            allowed = ", ".join(str(root) for root in self.allowed_upload_roots)
+            raise PermissionError(f"File path must stay within demo sample directories: {allowed}")
+        return resolved
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True

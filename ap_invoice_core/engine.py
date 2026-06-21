@@ -84,71 +84,30 @@ def evaluate_rules(
 ) -> list[RuleResult]:
     ruleset = _load_ruleset(pack_dir)
     results: list[RuleResult] = []
+
+    def add_rule(rule_id: str, evidence: list[Evidence]) -> None:
+        if not any(result.rule_id == rule_id for result in results):
+            results.append(_to_rule_result(rule_id=rule_id, ruleset=ruleset, evidence=evidence))
+
     if not facts.invoice.invoice_number.value:
-        results.append(
-            _to_rule_result(
-                rule_id="AP-REQ-001",
-                ruleset=ruleset,
-                evidence=_evidence_for(facts, "invoice.invoice_number"),
-            )
-        )
+        add_rule("AP-REQ-001", _evidence_for(facts, "invoice.invoice_number"))
     vendor = match_results["vendor_master"]
     if vendor.status == "not_found":
-        results.append(
-            _to_rule_result(
-                rule_id="AP-VENDOR-001",
-                ruleset=ruleset,
-                evidence=facts.invoice.vendor_id.evidence,
-            )
-        )
+        add_rule("AP-VENDOR-001", facts.invoice.vendor_id.evidence)
     if vendor.details.get("bank_account_match") is False:
-        results.append(
-            _to_rule_result(
-                rule_id="AP-VENDOR-002",
-                ruleset=ruleset,
-                evidence=facts.invoice.bank_account.evidence,
-            )
-        )
+        add_rule("AP-VENDOR-002", facts.invoice.bank_account.evidence)
     if vendor.details.get("blocked") is True:
-        results.append(
-            _to_rule_result(
-                rule_id="AP-BLOCK-001",
-                ruleset=ruleset,
-                evidence=facts.invoice.vendor_id.evidence,
-            )
-        )
-    if match_results["po_match"].details.get("within_tolerance") is False:
-        results.append(
-            _to_rule_result(
-                rule_id="AP-PO-001",
-                ruleset=ruleset,
-                evidence=match_results["po_match"].evidence,
-            )
-        )
-    if match_results["grn_match"].details.get("quantity_covered") is False:
-        results.append(
-            _to_rule_result(
-                rule_id="AP-GRN-001",
-                ruleset=ruleset,
-                evidence=match_results["grn_match"].evidence,
-            )
-        )
+        add_rule("AP-BLOCK-001", facts.invoice.vendor_id.evidence)
+    po_match = match_results["po_match"]
+    if po_match.status != "matched":
+        add_rule("AP-PO-001", po_match.evidence)
+    grn_match = match_results["grn_match"]
+    if grn_match.status != "matched":
+        add_rule("AP-GRN-001", grn_match.evidence)
     if int(match_results["duplicate_check"].details.get("score", 0)) >= 80:
-        results.append(
-            _to_rule_result(
-                rule_id="AP-DUP-001",
-                ruleset=ruleset,
-                evidence=match_results["duplicate_check"].evidence,
-            )
-        )
+        add_rule("AP-DUP-001", match_results["duplicate_check"].evidence)
     if match_results["tax_check"].status != "matched":
-        results.append(
-            _to_rule_result(
-                rule_id="AP-TAX-001",
-                ruleset=ruleset,
-                evidence=match_results["tax_check"].evidence,
-            )
-        )
+        add_rule("AP-TAX-001", match_results["tax_check"].evidence)
     return results
 
 
@@ -228,10 +187,11 @@ def review_invoice_packet(
     refs = ReferenceData(pack)
     ruleset = _load_ruleset(pack)
     tolerance = float(ruleset["tolerances"]["amount_absolute_jpy"])
+    tolerance_percent = float(ruleset["tolerances"].get("amount_percent", 0))
     tax_tolerance = float(ruleset["tolerances"]["tax_rounding_jpy"])
     match_results = {
         "vendor_master": match_vendor_master(facts, refs),
-        "po_match": match_purchase_order(facts, refs, tolerance),
+        "po_match": match_purchase_order(facts, refs, tolerance, tolerance_percent),
         "grn_match": match_goods_receipt(facts),
         "duplicate_check": duplicate_score(facts, refs),
         "tax_check": tax_check(facts, refs, tax_tolerance),
@@ -296,6 +256,8 @@ def _persist_artifacts(
 
     def write(name: str, payload: Any) -> str:
         path = artifact_dir / name
+        if path.exists():
+            raise FileExistsError(f"Refusing to overwrite audit artifact: {path}")
         if hasattr(payload, "model_dump"):
             body = payload.model_dump(mode="json")
         elif isinstance(payload, list):
@@ -308,7 +270,7 @@ def _persist_artifacts(
         else:
             body = payload
         path.write_text(json.dumps(body, ensure_ascii=False, indent=2), "utf-8")
-        return str(path)
+        return f"artifact://{case_id}/{name}"
 
     canonical = write("canonical_facts.json", facts)
     vendor = write("vendor_match_result.json", match_results["vendor_master"])

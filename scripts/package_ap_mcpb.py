@@ -35,9 +35,7 @@ SKIP_PARTS = {
 
 
 def ensure_samples() -> None:
-    expected = PROJECT_ROOT / "samples" / "case-a-pay-ready" / "expected-result.json"
-    if not expected.is_file():
-        subprocess.run([sys.executable, "scripts/generate_ap_samples.py"], cwd=PROJECT_ROOT, check=True)
+    subprocess.run([sys.executable, "scripts/generate_ap_samples.py"], cwd=PROJECT_ROOT, check=True)
 
 
 def should_skip(path: Path) -> bool:

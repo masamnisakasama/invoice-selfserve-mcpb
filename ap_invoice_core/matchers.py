@@ -45,6 +45,7 @@ def match_purchase_order(
     facts: CanonicalFacts,
     refs: ReferenceData,
     amount_tolerance_jpy: float,
+    amount_tolerance_percent: float,
 ) -> MatchResult:
     po_number = str(facts.invoice.po_number.value)
     po = refs.po_master.get(po_number)
@@ -54,6 +55,7 @@ def match_purchase_order(
     invoice_total = float(facts.invoice.total_amount.value)
     po_total = float(facts.purchase_order.total_amount.value)
     diff = invoice_total - po_total
+    effective_tolerance = max(amount_tolerance_jpy, po_total * amount_tolerance_percent)
     details = {
         "po_number": po_number,
         "approved": _bool(po.get("approved")) and bool(facts.purchase_order.approved.value),
@@ -62,7 +64,10 @@ def match_purchase_order(
         "invoice_total": invoice_total,
         "po_total": po_total,
         "amount_diff": diff,
-        "within_tolerance": abs(diff) <= amount_tolerance_jpy,
+        "amount_tolerance_jpy": amount_tolerance_jpy,
+        "amount_tolerance_percent": amount_tolerance_percent,
+        "effective_tolerance": effective_tolerance,
+        "within_tolerance": abs(diff) <= effective_tolerance,
         "remaining_balance_sufficient": invoice_total <= float(facts.purchase_order.remaining_balance.value),
     }
     status = "matched" if all(
@@ -143,4 +148,3 @@ def tax_check(facts: CanonicalFacts, refs: ReferenceData, rounding_tolerance: fl
 
 def receipt_due_date(invoice_date: str, days: int = 30) -> str:
     return (date.fromisoformat(invoice_date) + timedelta(days=days)).isoformat()
-

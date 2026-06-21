@@ -16,13 +16,15 @@ def test_golden_decision_artifacts_match_expected_case_results(tmp_path: Path) -
         expected = load_expected(case_name)
         reviewed = review_case(case_name, tmp_path / "artifacts" / case_name)
         result = reviewed["result"]
-        artifacts = result["audit_artifacts"]
+        artifact_dir = tmp_path / "artifacts" / case_name / reviewed["case_id"]
 
-        decision_path = Path(artifacts["decision_result_uri"])
-        rules_path = Path(artifacts["rule_result_uri"])
-        trace_path = Path(artifacts["execution_trace_uri"])
+        decision_path = artifact_dir / "decision_result.json"
+        rules_path = artifact_dir / "rule_result.json"
+        trace_path = artifact_dir / "execution_trace.json"
         for path in (decision_path, rules_path, trace_path):
             assert path.is_file()
+        for uri in result["audit_artifacts"].values():
+            assert uri.startswith(f"artifact://{reviewed['case_id']}/")
 
         decision = json.loads(decision_path.read_text("utf-8"))
         rules = json.loads(rules_path.read_text("utf-8"))
