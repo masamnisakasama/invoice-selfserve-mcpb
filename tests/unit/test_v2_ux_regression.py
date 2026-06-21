@@ -15,6 +15,7 @@ SKILL_PATH = (
     / "SKILL.md"
 )
 WORKFLOW_SKILL_PATH = PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "SKILL.md"
+SLASH_COMMAND_PATH = PROJECT_ROOT / "commands" / "ap-review.md"
 
 
 def test_skill_contains_v2_ux_guardrails() -> None:
@@ -45,6 +46,25 @@ def test_workflow_skill_contains_desktop_auto_flow_guardrails() -> None:
     assert "請求書のみ | このデモMCPBではレビューを開始しない" in skill
     assert "PO/GRNなしでも動く" not in skill
     assert "available checks" not in skill
+
+
+def test_ap_review_slash_command_enforces_deterministic_ocr_flow() -> None:
+    command = SLASH_COMMAND_PATH.read_text("utf-8")
+
+    assert command.startswith("---\ndescription: ")
+    assert "/ap-review — AP Invoice Review" in command
+    assert "確認・質問は一切しない" in command
+    assert "case-a → case-a-pay-ready" in command
+    assert "case-f → case-f-tax-review" in command
+    assert "ap_invoice_setup_demo_workspace()" in command
+    assert "ap_invoice_review_demo_case(case_id)" in command
+    assert "ap_invoice_prepare_ocr_run(folder_path)" in command
+    assert "ap_invoice_submit_ocr_result(run_id, ocr_results)" in command
+    assert "ap_invoice_review_from_ocr_result(run_id)" in command
+    assert "write_performed=false" in command
+    assert "レガシーツール（list_ap_demo_cases, review_ap_demo_case 等）の使用" in command
+    assert "フォールバックや代替フロー" in command
+    assert "ERP/SaaS への書き込みが行われたと示唆すること" in command
 
 
 def test_manifest_lists_high_level_tools_before_low_level_tools() -> None:

@@ -31,6 +31,18 @@ REQUIRED_TOOLS = (
     "ap_invoice_build_approval_brief",
     "ap_invoice_build_resolution_pack",
 )
+REQUIRED_COMMAND = "commands/ap-review.md"
+COMMAND_MUST_CONTAIN = (
+    "/ap-review — AP Invoice Review",
+    "ap_invoice_setup_demo_workspace()",
+    "ap_invoice_review_demo_case(case_id)",
+    "ap_invoice_prepare_ocr_run(folder_path)",
+    "ap_invoice_submit_ocr_result(run_id, ocr_results)",
+    "ap_invoice_review_from_ocr_result(run_id)",
+    "write_performed=false",
+    "レガシーツール（list_ap_demo_cases, review_ap_demo_case 等）の使用",
+    "フォールバックや代替フロー",
+)
 
 
 def main() -> None:
@@ -81,6 +93,13 @@ def main() -> None:
             failures.append("root Claude plugin metadata missing")
         if "skills/ap-review/SKILL.md" not in names:
             failures.append("root AP review skill missing")
+        if REQUIRED_COMMAND not in names:
+            failures.append(f"slash command missing: {REQUIRED_COMMAND}")
+        else:
+            command = zf.read(REQUIRED_COMMAND).decode("utf-8")
+            for required_text in COMMAND_MUST_CONTAIN:
+                if required_text not in command:
+                    failures.append(f"slash command missing required guardrail: {required_text}")
     if failures:
         for failure in failures:
             print(failure)

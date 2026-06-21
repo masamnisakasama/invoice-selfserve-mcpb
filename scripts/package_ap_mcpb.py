@@ -17,6 +17,7 @@ INCLUDE_DIRS = [
     "samples",
     "docs",
     "enterprise-bundle/plugin/ap-invoice-review",
+    "commands",
 ]
 INCLUDE_FILES = [
     "manifest.json",
