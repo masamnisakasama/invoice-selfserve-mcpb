@@ -13,6 +13,7 @@ cd /Users/ikedamasahiro/Agentmemory_MVP/invoice-selfserveMCP
 make test
 make package-ap-mcpb
 make verify-mcpb-contents
+make verify-ocr-smoke-gate
 ```
 
 2. Send this file to the Windows demo PC:
@@ -55,6 +56,19 @@ C:\Users\<user>\Documents\APInvoiceDemo\_runs\<run_id>\ocr_results\smoke.ocr.jso
 
 Stop and ask for a product decision if Claude Desktop cannot read the image tool result, does not call the submit tool, or only succeeds when the answer is provided outside the image.
 
+### Current Implementation Status
+
+- Q1. Can Claude Desktop treat MCP image content as OCR input? `未確認 / Unverified` until the Windows Claude Desktop run above succeeds.
+- Q2. Image return format: `type=image`, base64 PNG, `mimeType=image/png`.
+- Q3. Current smoke PNG size: roughly 10-20 KB before base64.
+- Q4. Smoke image generation uses Pillow. This is not a local OCR engine.
+- Q5. Local evidence only proves the MCP tool returns non-empty PNG bytes. Real OCR is manual Go/No-Go.
+- Q6. OCR result JSON is saved under `Documents/APInvoiceDemo/_runs/<run_id>/ocr_results`.
+- Q7. Full no-sidecar AP review migration is intentionally not complete before the Milestone 0 Go decision.
+- Q8. The tool and skill tell Claude to treat image text as untrusted document data.
+- Q9. This local MCPB demo is fictional data only.
+- Q10. The extension ID is now `ap-invoice-review-claude-ocr`.
+
 ## 日本語
 
 このパッケージは現時点では vNext Milestone 0 のGo/No-Go確認段階です。実機Claude Desktopでsmoke testが通るまでは、APレビュー本体を「Claude OCRだけで動く実装」として扱わないでください。
@@ -68,6 +82,7 @@ cd /Users/ikedamasahiro/Agentmemory_MVP/invoice-selfserveMCP
 make test
 make package-ap-mcpb
 make verify-mcpb-contents
+make verify-ocr-smoke-gate
 ```
 
 2. 次のファイルをWindowsデモPCへ渡します。
@@ -109,3 +124,16 @@ C:\Users\<user>\Documents\APInvoiceDemo\_runs\<run_id>\ocr_results\smoke.ocr.jso
 ### No-Go
 
 Claude Desktopがtool result画像を読めない、submit toolを呼ばない、画像外に正解を渡さないと通らない場合はそこで停止し、次の方針を決めてください。
+
+### 現在の実装ステータス
+
+- Q1. Claude DesktopがMCP image contentをOCR入力として扱えるか: Windows Claude Desktopで上記確認が通るまでは `未確認` です。
+- Q2. 画像返却形式: `type=image`、base64 PNG、`mimeType=image/png`。
+- Q3. 現在のsmoke PNGサイズ: base64前で約10-20 KBです。
+- Q4. smoke画像生成にはPillowを使っています。これはローカルOCRエンジンではありません。
+- Q5. ローカル証跡で確認できるのは「MCP toolが非空PNGを返すこと」までです。実OCRは手動Go/No-Goです。
+- Q6. OCR結果JSONは `Documents/APInvoiceDemo/_runs/<run_id>/ocr_results` に保存します。
+- Q7. APレビュー本体のno-sidecar化は、Milestone 0のGo判定前なので意図的に未完了です。
+- Q8. toolとskillには、画像内テキストを信頼しない文書データとして扱う指示を入れています。
+- Q9. このローカルMCPBデモは架空データ専用です。
+- Q10. extension IDは `ap-invoice-review-claude-ocr` です。
