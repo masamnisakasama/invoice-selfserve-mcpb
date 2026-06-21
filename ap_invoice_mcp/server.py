@@ -200,6 +200,16 @@ def ap_invoice_build_approval_brief(job_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+def ap_invoice_build_resolution_pack(
+    run_id: str,
+    audience: str = "ap_operator",
+    language: str = "ja",
+) -> dict[str, Any]:
+    """Build practical next-action messages for a completed AP invoice review."""
+    return service.build_resolution_pack(run_id=run_id, audience=audience, language=language)
+
+
+@mcp.tool()
 def list_ap_demo_cases() -> dict[str, Any]:
     """List bundled AP invoice demo cases and explain their business value."""
     return _legacy_sidecar_tool_blocked("list_ap_demo_cases")
@@ -335,6 +345,18 @@ def ap_approval_brief(job_id: str = "") -> str:
         f"job_id={job_id} の承認者向け判断パケットを作ります。"
         "ap_invoice_build_approval_briefを呼び、支払判断・リスク・根拠・"
         "write_performed=falseを短くまとめてください。"
+    )
+
+
+@mcp.prompt(
+    name="ap-resolution-pack",
+    description="Build practical AP next-action messages from a completed review.",
+)
+def ap_resolution_pack(run_id: str = "") -> str:
+    return (
+        f"run_id={run_id} のAP Resolution Packを作ります。"
+        "ap_invoice_build_resolution_packを呼び、AP担当者・購買担当・取引先・承認者向けの"
+        "次アクション、確認文、必要証跡、write_performed=falseを日本語でまとめてください。"
     )
 
 

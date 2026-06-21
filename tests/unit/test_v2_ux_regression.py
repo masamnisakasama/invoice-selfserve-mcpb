@@ -14,6 +14,7 @@ SKILL_PATH = (
     / "ap-review"
     / "SKILL.md"
 )
+WORKFLOW_SKILL_PATH = PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "SKILL.md"
 
 
 def test_skill_contains_v2_ux_guardrails() -> None:
@@ -25,6 +26,7 @@ def test_skill_contains_v2_ux_guardrails() -> None:
     assert "ap_invoice_prepare_ocr_run" in skill
     assert "ap_invoice_submit_ocr_result" in skill
     assert "ap_invoice_review_from_ocr_result" in skill
+    assert "ap_invoice_build_resolution_pack" in skill
     assert "Do not read JSON sidecars" in skill
     assert "Do not skip OCR" in skill
     assert "Prefer high-level tools" in skill
@@ -32,6 +34,17 @@ def test_skill_contains_v2_ux_guardrails() -> None:
         assert slash in skill
     assert "Always show `write_performed=false`" in skill
     assert "Use the installed AP Invoice Exception Review MCP tools" in skill
+
+
+def test_workflow_skill_contains_desktop_auto_flow_guardrails() -> None:
+    skill = WORKFLOW_SKILL_PATH.read_text("utf-8")
+
+    assert "ap_invoice_build_resolution_pack" in skill
+    assert "Resolution Pack" in skill
+    assert "write_performed=false" in skill
+    assert "請求書のみ | このデモMCPBではレビューを開始しない" in skill
+    assert "PO/GRNなしでも動く" not in skill
+    assert "available checks" not in skill
 
 
 def test_manifest_lists_high_level_tools_before_low_level_tools() -> None:
@@ -51,6 +64,7 @@ def test_manifest_lists_high_level_tools_before_low_level_tools() -> None:
         "ap_invoice_build_approval_brief",
     ]
     assert tools.index("ap_invoice_review_folder") < tools.index("create_ap_review_case")
+    assert tools.index("ap_invoice_build_resolution_pack") < tools.index("create_ap_review_case")
 
 
 def test_high_level_tool_descriptions_are_ux_focused() -> None:
@@ -61,3 +75,4 @@ def test_high_level_tool_descriptions_are_ux_focused() -> None:
     assert "visible local" in descriptions["ap_invoice_list_demo_cases"]
     assert "Claude OCR" in descriptions["ap_invoice_review_folder"]
     assert "_runs" in descriptions["ap_invoice_submit_ocr_result"]
+    assert "next-action messages" in descriptions["ap_invoice_build_resolution_pack"]

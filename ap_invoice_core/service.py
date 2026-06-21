@@ -23,6 +23,7 @@ from .ocr_flow import (
     require_run_dir,
     submit_ocr_result,
 )
+from .resolution import build_resolution_pack
 
 
 DOCUMENT_TYPES = ("invoice", "purchase_order", "goods_receipt")
@@ -557,6 +558,16 @@ class ReviewService:
             "artifact_paths": packet.get("artifact_paths", {}),
             "write_performed": False,
         }
+
+    def build_resolution_pack(
+        self,
+        *,
+        run_id: str,
+        audience: str = "ap_operator",
+        language: str = "ja",
+    ) -> dict[str, Any]:
+        packet = self._load_completed_ocr_packet(run_id)
+        return build_resolution_pack(packet, audience=audience, language=language)
 
     def _require_case(self, case_id: str) -> ReviewCase:
         try:

@@ -4,9 +4,10 @@ PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 
 .PHONY: venv install lint typecheck test generate-ap-samples test-ap-rules \
-        test-ap-fixtures test-ap-golden package-ap-mcpb verify-ap-data-boundary \
-        verify-mcpb-contents verify-no-answer-sidecars verify-ocr-smoke-gate \
-        verify-e2e-ocr-flow smoke-ap-mcp dev-mcp
+        test-ap-fixtures test-ap-golden package-ap-mcpb package-plugin \
+        verify-ap-data-boundary verify-mcpb-contents verify-plugin-contents \
+        verify-no-answer-sidecars verify-ocr-smoke-gate verify-e2e-ocr-flow \
+        smoke-ap-mcp dev-mcp
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -39,11 +40,17 @@ test-ap-golden:
 package-ap-mcpb:
 	$(PY) scripts/package_ap_mcpb.py
 
+package-plugin:
+	$(PY) scripts/package_ap_plugin.py
+
 verify-ap-data-boundary:
 	$(PY) scripts/verify_ap_data_boundary.py dist/ap-invoice-review.mcpb
 
 verify-mcpb-contents:
 	$(PY) scripts/verify_mcpb_contents.py dist/ap-invoice-review.mcpb
+
+verify-plugin-contents:
+	$(PY) scripts/verify_plugin_contents.py dist/ap-invoice-review.plugin
 
 verify-no-answer-sidecars:
 	$(PY) scripts/verify_no_answer_sidecars.py dist/ap-invoice-review.mcpb

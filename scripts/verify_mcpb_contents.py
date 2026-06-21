@@ -29,6 +29,7 @@ REQUIRED_TOOLS = (
     "ap_invoice_review_demo_case",
     "ap_invoice_explain_exception",
     "ap_invoice_build_approval_brief",
+    "ap_invoice_build_resolution_pack",
 )
 
 
@@ -76,6 +77,10 @@ def main() -> None:
         failures.extend(_check_rendered_pdfs(zf, names))
         if "workflow-packs/ap-invoice-v1/ruleset.yaml" not in names:
             failures.append("workflow ruleset missing")
+        if ".claude-plugin/plugin.json" not in names:
+            failures.append("root Claude plugin metadata missing")
+        if "skills/ap-review/SKILL.md" not in names:
+            failures.append("root AP review skill missing")
     if failures:
         for failure in failures:
             print(failure)

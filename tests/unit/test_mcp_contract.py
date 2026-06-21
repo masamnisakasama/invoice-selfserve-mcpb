@@ -16,6 +16,7 @@ def test_mcp_tools_list_is_stable_and_schema_backed() -> None:
     by_name = {tool.name: tool for tool in tools}
     assert sorted(by_name) == [
         "ap_invoice_build_approval_brief",
+        "ap_invoice_build_resolution_pack",
         "ap_invoice_explain_exception",
         "ap_invoice_list_demo_cases",
         "ap_invoice_ocr_smoke_test",
@@ -49,6 +50,7 @@ def test_mcp_tools_list_is_stable_and_schema_backed() -> None:
         "ocr_results",
     ]
     assert by_name["ap_invoice_review_from_ocr_result"].inputSchema["required"] == ["run_id"]
+    assert by_name["ap_invoice_build_resolution_pack"].inputSchema["required"] == ["run_id"]
     assert by_name["ap_invoice_preview_folder"].inputSchema["required"] == ["folder_path"]
     assert by_name["ap_invoice_submit_ocr_smoke_test_result"].inputSchema["required"] == [
         "run_id",
@@ -73,6 +75,7 @@ def test_mcp_prompts_list_is_stable() -> None:
         "ap-approval-brief",
         "ap-demo",
         "ap-explain",
+        "ap-resolution-pack",
         "ap-review",
     ]
 

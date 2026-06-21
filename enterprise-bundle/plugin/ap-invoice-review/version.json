@@ -1,6 +1,6 @@
 {
   "name": "ap-invoice-review-claude-ocr",
-  "version": "0.7.0",
+  "version": "0.7.2",
   "workflow_pack": "ap-invoice-v1",
   "ruleset_version": "ap-demo-2026-01",
   "external_write_allowed": false

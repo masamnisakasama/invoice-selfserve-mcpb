@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "ap-invoice-review-claude-ocr",
   "display_name": "AP Invoice Review — Claude OCR",
-  "version": "0.7.0",
+  "version": "0.7.2",
   "description": "Self-serve AP invoice MCPB with Claude OCR-to-decision folder review.",
   "long_description": "Review visible local AP invoice folders by rendering invoice, purchase order, and goods receipt PDFs as images and requiring Claude OCR before deterministic AP matching. JSON sidecars are not used. OCR results are written only to _runs/<run_id>/ocr_results. Never uses Airtable, Google Drive, or external ERP/SaaS writes.",
   "author": {
@@ -60,6 +60,10 @@
     {
       "name": "ap_invoice_build_approval_brief",
       "description": "Build an approver-facing brief for a completed Claude OCR AP review by run_id."
+    },
+    {
+      "name": "ap_invoice_build_resolution_pack",
+      "description": "Build practical next-action messages and evidence packet for a completed AP invoice review."
     },
     {
       "name": "ap_invoice_ocr_smoke_test",

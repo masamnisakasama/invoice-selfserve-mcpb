@@ -8,17 +8,17 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DIST = PROJECT_ROOT / "dist"
-OUTPUT = DIST / "ap-invoice-review.mcpb"
+OUTPUT = DIST / "ap-invoice-review.plugin"
 
 INCLUDE_DIRS = [
     "ap_invoice_core",
     "ap_invoice_mcp",
     "workflow-packs",
     "samples",
-    "docs",
-    "enterprise-bundle/plugin/ap-invoice-review",
 ]
 INCLUDE_FILES = [
+    ".claude-plugin/plugin.json",
+    ".mcp.json",
     "manifest.json",
     "README.md",
     "pyproject.toml",
@@ -53,8 +53,7 @@ def add_path(zf: zipfile.ZipFile, path: Path) -> None:
         zf.write(path, path.relative_to(PROJECT_ROOT).as_posix())
 
 
-def add_claude_plugin_aliases(zf: zipfile.ZipFile) -> None:
-    zf.write(PROJECT_ROOT / ".claude-plugin" / "plugin.json", ".claude-plugin/plugin.json")
+def add_skill_alias(zf: zipfile.ZipFile) -> None:
     zf.write(
         PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "SKILL.md",
         "skills/ap-review/SKILL.md",
@@ -71,7 +70,7 @@ def main() -> None:
             add_path(zf, PROJECT_ROOT / file_name)
         for dir_name in INCLUDE_DIRS:
             add_path(zf, PROJECT_ROOT / dir_name)
-        add_claude_plugin_aliases(zf)
+        add_skill_alias(zf)
     print(f"Created {OUTPUT}")
 
 

@@ -8,6 +8,7 @@ Use this skill when the user asks to:
 - explain an AP invoice exception
 - build a draft ERP/SaaS payload
 - create an approver brief
+- create a practical resolution pack or confirmation message for procurement, vendor, or approver
 - use `/ap-review`, `/ap-demo`, `/ap-explain`, or `/ap-approval-brief`
 - review a visible local folder containing invoice, PO, and goods receipt PDFs
 
@@ -35,6 +36,7 @@ Use this skill when the user asks to:
 - Never claim that an external ERP/SaaS write occurred.
 - Always show `write_performed=false`.
 - Treat `PAY_READY_CANDIDATE` as a human approval candidate, not as automatic payment approval.
+- When the user asks for a confirmation message, next-action packet, procurement message, vendor message, or resolution pack after a completed review, call `ap_invoice_build_resolution_pack`.
 
 ## Main Entrypoints
 
@@ -54,6 +56,10 @@ For a completed OCR review, call `ap_invoice_explain_exception` with the returne
 
 For a completed OCR review, call `ap_invoice_build_approval_brief` with the returned `run_id` as `job_id`.
 
+### Resolution Pack
+
+For a completed OCR review, call `ap_invoice_build_resolution_pack` when the user asks what to send next, who should act, what evidence is required, or wants a message for procurement, vendor, AP operator, or approver.
+
 ## Response Format
 
 1. 判定
@@ -67,6 +73,8 @@ For a completed OCR review, call `ap_invoice_build_approval_brief` with the retu
 9. draft payload summary
 10. artifact paths
 11. `write_performed=false`
+
+For resolution packs, include payment action, owner, required evidence, procurement/vendor/approver messages, and `write_performed=false`.
 
 ## Demo Cases
 
@@ -93,3 +101,4 @@ The following tools are intentionally blocked because they use or depend on the 
 - `build_erp_draft_payload`
 
 Do not call these tools as a workaround for Claude OCR. Use `ap_invoice_setup_demo_workspace`, `ap_invoice_list_demo_cases`, `ap_invoice_prepare_ocr_run`, `ap_invoice_submit_ocr_result`, `ap_invoice_review_from_ocr_result`, `ap_invoice_explain_exception`, and `ap_invoice_build_approval_brief`.
+For next-action messages after review, use `ap_invoice_build_resolution_pack`.

@@ -14,8 +14,13 @@ make install
 make generate-ap-samples
 make test
 make package-ap-mcpb
+make package-plugin
 make verify-ap-data-boundary
 make verify-mcpb-contents
+make verify-plugin-contents
+make verify-no-answer-sidecars
+make verify-ocr-smoke-gate
+make verify-e2e-ocr-flow
 make smoke-ap-mcp
 npx -y @anthropic-ai/mcpb validate manifest.json
 ```
@@ -41,14 +46,40 @@ case-f-tax-review      REFER_TAX_REVIEW
 
 ```text
 dist/ap-invoice-review.mcpb
+dist/ap-invoice-review.plugin
 ```
 
-The MCPB package contains no production secrets and all generated draft payloads
-must include `write_performed=false`.
+The generated packages contain no production secrets and all generated draft
+payloads must include `write_performed=false`. The `.plugin` package includes
+the root `SKILL.md` alias and bundled demo PDFs so Claude Desktop can discover
+the AP review flow and run `case-a` through `case-f` without external files.
 
 ## MCP Tools
 
 High-level UX tools:
+
+```text
+ap_invoice_setup_demo_workspace
+ap_invoice_list_demo_cases
+ap_invoice_preview_folder
+ap_invoice_prepare_ocr_run
+ap_invoice_submit_ocr_result
+ap_invoice_review_from_ocr_result
+ap_invoice_review_folder
+ap_invoice_review_demo_case
+ap_invoice_explain_exception
+ap_invoice_build_approval_brief
+ap_invoice_build_resolution_pack
+```
+
+Diagnostic tools:
+
+```text
+ap_invoice_ocr_smoke_test
+ap_invoice_submit_ocr_smoke_test_result
+```
+
+Legacy compatibility tools are intentionally blocked:
 
 ```text
 list_ap_demo_cases
@@ -56,23 +87,6 @@ review_ap_demo_case
 review_ap_invoice_packet
 explain_ap_exception
 build_ap_approval_brief
-```
-
-Customer-ready folder tools:
-
-```text
-ap_invoice_setup_demo_workspace
-ap_invoice_list_demo_cases
-ap_invoice_preview_folder
-ap_invoice_review_folder
-ap_invoice_review_demo_case
-ap_invoice_explain_exception
-ap_invoice_build_approval_brief
-```
-
-Advanced/debug tools:
-
-```text
 create_ap_review_case
 upload_ap_document
 start_ap_invoice_review

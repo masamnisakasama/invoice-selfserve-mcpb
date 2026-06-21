@@ -1,6 +1,6 @@
 [project]
 name = "ap-invoice-selfserve-mcpb"
-version = "0.7.0"
+version = "0.7.2"
 description = "AP Invoice Exception Review self-serve MCPB demo with Claude OCR E2E review"
 requires-python = ">=3.11"
 dependencies = [
