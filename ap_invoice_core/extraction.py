@@ -24,6 +24,7 @@ def _ev(document_type: str, document_name: str, field: str, value: Any) -> Evide
         field_label=field,
         raw_text=str(value),
         normalized_value=value,
+        source="claude_desktop_vision_ocr",
     )
 
 
@@ -51,14 +52,92 @@ def load_canonical_from_documents(
     purchase_order_pdf: str | Path,
     goods_receipt_pdf: str | Path,
 ) -> CanonicalFacts:
-    invoice_data = _load_sidecar(Path(invoice_pdf), "invoice")
-    po_data = _load_sidecar(Path(purchase_order_pdf), "purchase_order")
-    grn_data = _load_sidecar(Path(goods_receipt_pdf), "goods_receipt")
-    return CanonicalFacts(
-        invoice=_invoice(invoice_data, Path(invoice_pdf).name),
-        purchase_order=_po(po_data, Path(purchase_order_pdf).name),
-        goods_receipt=_grn(grn_data, Path(goods_receipt_pdf).name),
+    raise RuntimeError(
+        "Legacy sidecar extraction is disabled in the Claude OCR MCPB. "
+        "Use canonical_from_ocr_results after ap_invoice_submit_ocr_result."
     )
+
+
+def canonical_from_ocr_results(
+    *,
+    invoice_ocr: dict[str, Any],
+    purchase_order_ocr: dict[str, Any],
+    goods_receipt_ocr: dict[str, Any],
+) -> CanonicalFacts:
+    return CanonicalFacts(
+        invoice=_invoice(_normalize_ocr_document(invoice_ocr, "invoice"), _document_name(invoice_ocr, "invoice.pdf")),
+        purchase_order=_po(
+            _normalize_ocr_document(purchase_order_ocr, "purchase_order"),
+            _document_name(purchase_order_ocr, "purchase_order.pdf"),
+        ),
+        goods_receipt=_grn(
+            _normalize_ocr_document(goods_receipt_ocr, "goods_receipt"),
+            _document_name(goods_receipt_ocr, "goods_receipt.pdf"),
+        ),
+    )
+
+
+def _normalize_ocr_document(data: dict[str, Any], expected_document_type: str) -> dict[str, Any]:
+    actual_document_type = data.get("document_type")
+    if actual_document_type != expected_document_type:
+        raise ValueError(
+            f"OCR document_type mismatch: expected {expected_document_type}, got {actual_document_type}"
+        )
+    fields = dict(data.get("fields") or {})
+    for field in (
+        "subtotal_amount",
+        "tax_amount",
+        "total_amount",
+        "remaining_balance",
+        "received_quantity",
+    ):
+        if field in fields:
+            fields[field] = _normalize_int(fields[field])
+    if "approved" in fields:
+        fields["approved"] = _normalize_bool(fields["approved"])
+    if "received" in fields:
+        fields["received"] = _normalize_bool(fields["received"])
+    for item in fields.get("line_items") or []:
+        if not isinstance(item, dict):
+            continue
+        for field in ("quantity", "unit_price", "amount"):
+            if field in item:
+                item[field] = _normalize_number(item[field])
+        item.setdefault("tax_code", fields.get("tax_code", "JP10"))
+    return {"document_type": expected_document_type, "fields": fields}
+
+
+def _document_name(data: dict[str, Any], default: str) -> str:
+    value = data.get("document_name")
+    return str(value).strip() if value else default
+
+
+def _normalize_int(value: Any) -> int:
+    return int(_normalize_number(value))
+
+
+def _normalize_number(value: Any) -> float:
+    if isinstance(value, bool) or value is None:
+        raise ValueError(f"Expected numeric OCR value, got {value!r}")
+    if isinstance(value, int | float):
+        return value
+    text = str(value)
+    digits = "".join(ch for ch in text if ch.isdigit() or ch in ".-")
+    if digits in {"", "-", ".", "-."}:
+        raise ValueError(f"Expected numeric OCR value, got {value!r}")
+    number = float(digits)
+    return int(number) if number.is_integer() else number
+
+
+def _normalize_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in {"true", "yes", "y", "1", "received", "approved"}:
+        return True
+    if text in {"false", "no", "n", "0", "not received", "not approved"}:
+        return False
+    raise ValueError(f"Expected boolean OCR value, got {value!r}")
 
 
 def _line_items(items: list[dict[str, Any]]) -> list[InvoiceLineItem]:

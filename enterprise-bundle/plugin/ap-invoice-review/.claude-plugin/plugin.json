@@ -2,8 +2,8 @@
   "schema_version": "1.0",
   "name": "ap-invoice-review-claude-ocr",
   "display_name": "AP Invoice Review — Claude OCR",
-  "version": "0.6.0",
-  "description": "Guided AP invoice review with a Claude OCR image-result Go/No-Go smoke test.",
+  "version": "0.7.0",
+  "description": "Guided AP invoice review using Claude OCR-to-decision folder review.",
   "skills": [
     {
       "id": "ap-review",

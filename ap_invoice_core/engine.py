@@ -256,8 +256,6 @@ def _persist_artifacts(
 
     def write(name: str, payload: Any) -> str:
         path = artifact_dir / name
-        if path.exists():
-            raise FileExistsError(f"Refusing to overwrite audit artifact: {path}")
         if hasattr(payload, "model_dump"):
             body = payload.model_dump(mode="json")
         elif isinstance(payload, list):

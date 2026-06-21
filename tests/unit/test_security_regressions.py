@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
+from ap_invoice_core.extraction import load_canonical_from_documents
 from ap_invoice_core.service import ReviewService
-from scripts.generate_ap_samples import main as generate_samples
-from tests.helpers import PROJECT_ROOT, SAMPLES_DIR, review_case
+from tests.helpers import PROJECT_ROOT, SAMPLES_DIR, ocr_results_for_case, review_case
 
 
 def test_upload_rejects_paths_outside_demo_samples(tmp_path: Path) -> None:
@@ -24,74 +23,76 @@ def test_upload_rejects_paths_outside_demo_samples(tmp_path: Path) -> None:
         )
 
 
-def test_upload_rejects_post_review_document_overwrite(tmp_path: Path) -> None:
-    reviewed = review_case("case-a-pay-ready", tmp_path / "artifacts")
+def test_legacy_start_review_is_disabled_before_sidecar_runtime(tmp_path: Path) -> None:
+    service = ReviewService(project_root=PROJECT_ROOT, artifact_root=tmp_path / "artifacts")
+    created = service.create_case(tenant_id="test-tenant")
 
-    with pytest.raises(ValueError, match="already completed"):
-        reviewed["service"].upload_document(
-            case_id=reviewed["case_id"],
-            document_type="invoice",
-            file_path=str(SAMPLES_DIR / "case-a-pay-ready" / "invoice.pdf"),
+    with pytest.raises(ValueError, match="Legacy sidecar review is disabled"):
+        service.start_review(case_id=str(created["case_id"]))
+
+
+def test_legacy_sidecar_extraction_is_disabled(tmp_path: Path) -> None:
+    pdf = tmp_path / "invoice.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    sidecar = tmp_path / "invoice.json"
+    sidecar.write_text('{"document_type": "invoice"}', "utf-8")
+
+    with pytest.raises(RuntimeError, match="Legacy sidecar extraction is disabled"):
+        load_canonical_from_documents(
+            invoice_pdf=pdf,
+            purchase_order_pdf=pdf,
+            goods_receipt_pdf=pdf,
         )
 
 
-def test_start_review_is_idempotent_after_completion(tmp_path: Path) -> None:
+def test_submit_rejects_post_review_ocr_overwrite(tmp_path: Path) -> None:
     reviewed = review_case("case-a-pay-ready", tmp_path / "artifacts")
-    second = reviewed["service"].start_review(case_id=reviewed["case_id"])
 
-    assert second["job_id"] == reviewed["job"]["job_id"]
-    assert second["status"] == "completed"
+    result = reviewed["service"].submit_ocr_result(
+        run_id=reviewed["run_id"],
+        ocr_results=ocr_results_for_case("case-a-pay-ready"),
+    )
+
+    assert result["status"] == "OCR_VALIDATION_FAILED"
+    assert result["error_code"] == "RUN_STATE_INVALID"
+
+
+def test_review_from_ocr_result_rejects_second_review_after_completion(tmp_path: Path) -> None:
+    reviewed = review_case("case-a-pay-ready", tmp_path / "artifacts")
+
+    with pytest.raises(ValueError, match="not OCR_VALIDATED"):
+        reviewed["service"].review_from_ocr_result(run_id=reviewed["run_id"])
 
 
 def test_po_not_found_is_referred_not_pay_ready(tmp_path: Path) -> None:
-    case_dir = _copy_case(tmp_path, "case-a-pay-ready")
-    invoice_path = case_dir / "invoice.json"
-    invoice = json.loads(invoice_path.read_text("utf-8"))
-    invoice["fields"]["po_number"] = "PO-DOES-NOT-EXIST"
-    invoice_path.write_text(json.dumps(invoice, ensure_ascii=False, indent=2), "utf-8")
+    ocr_results = ocr_results_for_case("case-a-pay-ready")
+    ocr_results["invoice"]["fields"]["po_number"] = "PO-DOES-NOT-EXIST"
 
-    result = _review_custom_case(case_dir, tmp_path / "artifacts")
+    result = _review_custom_ocr_results(ocr_results, tmp_path / "artifacts")
 
     assert result["recommendation"] == "REFER_PO_MISMATCH"
     assert "AP-PO-001" in [rule["rule_id"] for rule in result["rule_results"]]
 
 
 def test_grn_not_received_is_referred_not_pay_ready(tmp_path: Path) -> None:
-    case_dir = _copy_case(tmp_path, "case-a-pay-ready")
-    grn_path = case_dir / "goods_receipt.json"
-    grn = json.loads(grn_path.read_text("utf-8"))
-    grn["fields"]["received"] = False
-    grn_path.write_text(json.dumps(grn, ensure_ascii=False, indent=2), "utf-8")
+    ocr_results = ocr_results_for_case("case-a-pay-ready")
+    ocr_results["goods_receipt"]["fields"]["received"] = False
 
-    result = _review_custom_case(case_dir, tmp_path / "artifacts")
+    result = _review_custom_ocr_results(ocr_results, tmp_path / "artifacts")
 
     assert result["recommendation"] == "REFER_GRN_MISMATCH"
     assert [rule["rule_id"] for rule in result["rule_results"]] == ["AP-GRN-001"]
 
 
-def _copy_case(tmp_path: Path, case_name: str) -> Path:
-    generate_samples()
-    source = SAMPLES_DIR / case_name
-    target = PROJECT_ROOT / "samples" / f"tmp-security-{tmp_path.name}"
-    if target.exists():
-        for child in target.iterdir():
-            child.unlink()
-    else:
-        target.mkdir(parents=True)
-    for child in source.iterdir():
-        (target / child.name).write_bytes(child.read_bytes())
-    return target
-
-
-def _review_custom_case(case_dir: Path, artifact_root: Path) -> dict[str, object]:
+def _review_custom_ocr_results(
+    ocr_results: dict[str, object],
+    artifact_root: Path,
+) -> dict[str, object]:
     service = ReviewService(project_root=PROJECT_ROOT, artifact_root=artifact_root)
-    created = service.create_case(tenant_id="test-tenant", case_label=case_dir.name)
-    case_id = created["case_id"]
-    for document_type in ("invoice", "purchase_order", "goods_receipt"):
-        service.upload_document(
-            case_id=case_id,
-            document_type=document_type,
-            file_path=str(case_dir / f"{document_type}.pdf"),
-        )
-    started = service.start_review(case_id=case_id)
-    return service.get_review_result(job_id=started["job_id"])["result"]
+    prepared = service.prepare_ocr_run(
+        folder_path=str(SAMPLES_DIR / "case-a-pay-ready"),
+        tenant_id="test-tenant",
+    )
+    submitted = service.submit_ocr_result(run_id=str(prepared["run_id"]), ocr_results=ocr_results)
+    assert submitted["status"] == "OCR_VALIDATED"
+    return service.review_from_ocr_result(run_id=str(prepared["run_id"]))

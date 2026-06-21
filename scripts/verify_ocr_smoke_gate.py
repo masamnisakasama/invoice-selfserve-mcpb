@@ -52,8 +52,6 @@ def _check_bundle_manifest(bundle: Path) -> list[str]:
     for required in ("ap_invoice_ocr_smoke_test", EXPECTED_NEXT_TOOL):
         if required not in tools:
             failures.append(f"manifest tool missing: {required}")
-    if tools[:2] != ["ap_invoice_ocr_smoke_test", EXPECTED_NEXT_TOOL]:
-        failures.append("OCR smoke tools must be the first two manifest tools")
     return failures
 
 
@@ -112,8 +110,6 @@ async def _check_live_tool_result() -> list[str]:
 async def _check_legacy_tools_are_blocked() -> list[str]:
     failures: list[str] = []
     legacy_calls = {
-        "ap_invoice_setup_demo_workspace": {},
-        "ap_invoice_review_demo_case": {"case_id": "case-a"},
         "review_ap_invoice_packet": {
             "tenant_id": "demo-tenant",
             "invoice_path": "samples/case-a-pay-ready/invoice.pdf",
@@ -125,9 +121,9 @@ async def _check_legacy_tools_are_blocked() -> list[str]:
         result = await mcp.call_tool(tool_name, arguments)
         payload = _tool_payload(result)
         if payload.get("status") != "blocked":
-            failures.append(f"{tool_name} must be blocked in the OCR gate package")
-        if payload.get("error_code") != "CLAUDE_OCR_SMOKE_GO_REQUIRED":
-            failures.append(f"{tool_name} must return CLAUDE_OCR_SMOKE_GO_REQUIRED")
+            failures.append(f"{tool_name} must be blocked in the Claude OCR package")
+        if payload.get("error_code") != "LEGACY_SIDECAR_FLOW_DISABLED":
+            failures.append(f"{tool_name} must return LEGACY_SIDECAR_FLOW_DISABLED")
     return failures
 
 

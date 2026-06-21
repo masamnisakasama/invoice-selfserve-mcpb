@@ -1,19 +1,24 @@
 from __future__ import annotations
 
-from ap_invoice_core.extraction import load_canonical_from_documents
+from ap_invoice_core.extraction import canonical_from_ocr_results
 from ap_invoice_core.matchers import duplicate_score, match_vendor_master, tax_check
 from ap_invoice_core.reference import ReferenceData
 from scripts.generate_ap_samples import main as generate_samples
-from tests.helpers import PROJECT_ROOT, SAMPLES_DIR
+from tests.helpers import PROJECT_ROOT, ocr_results_for_case
+
+
+def facts_for_case(case_name: str):
+    ocr = ocr_results_for_case(case_name)
+    return canonical_from_ocr_results(
+        invoice_ocr=ocr["invoice"],
+        purchase_order_ocr=ocr["purchase_order"],
+        goods_receipt_ocr=ocr["goods_receipt"],
+    )
 
 
 def test_vendor_master_matches_pay_ready_fixture() -> None:
     generate_samples()
-    facts = load_canonical_from_documents(
-        invoice_pdf=SAMPLES_DIR / "case-a-pay-ready" / "invoice.pdf",
-        purchase_order_pdf=SAMPLES_DIR / "case-a-pay-ready" / "purchase_order.pdf",
-        goods_receipt_pdf=SAMPLES_DIR / "case-a-pay-ready" / "goods_receipt.pdf",
-    )
+    facts = facts_for_case("case-a-pay-ready")
     result = match_vendor_master(facts, ReferenceData(PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1"))
     assert result.status == "matched"
     assert result.details["bank_account_match"] is True
@@ -21,11 +26,7 @@ def test_vendor_master_matches_pay_ready_fixture() -> None:
 
 def test_duplicate_score_detects_known_history_invoice() -> None:
     generate_samples()
-    facts = load_canonical_from_documents(
-        invoice_pdf=SAMPLES_DIR / "case-c-duplicate" / "invoice.pdf",
-        purchase_order_pdf=SAMPLES_DIR / "case-c-duplicate" / "purchase_order.pdf",
-        goods_receipt_pdf=SAMPLES_DIR / "case-c-duplicate" / "goods_receipt.pdf",
-    )
+    facts = facts_for_case("case-c-duplicate")
     result = duplicate_score(facts, ReferenceData(PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1"))
     assert result.status == "candidate"
     assert result.details["score"] == 100
@@ -33,11 +34,7 @@ def test_duplicate_score_detects_known_history_invoice() -> None:
 
 def test_tax_check_uses_master_rate_and_rounding_tolerance() -> None:
     generate_samples()
-    facts = load_canonical_from_documents(
-        invoice_pdf=SAMPLES_DIR / "case-a-pay-ready" / "invoice.pdf",
-        purchase_order_pdf=SAMPLES_DIR / "case-a-pay-ready" / "purchase_order.pdf",
-        goods_receipt_pdf=SAMPLES_DIR / "case-a-pay-ready" / "goods_receipt.pdf",
-    )
+    facts = facts_for_case("case-a-pay-ready")
     result = tax_check(
         facts,
         ReferenceData(PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1"),

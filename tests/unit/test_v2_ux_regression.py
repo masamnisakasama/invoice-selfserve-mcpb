@@ -22,10 +22,11 @@ def test_skill_contains_v2_ux_guardrails() -> None:
     assert "Do not search external connector registry" in skill
     assert "Do not search Airtable" in skill
     assert "Do not use Google Drive unless the user explicitly asks for Google Drive" in skill
-    assert "ap_invoice_ocr_smoke_test" in skill
-    assert "ap_invoice_submit_ocr_smoke_test_result" in skill
-    assert "Do not call legacy sidecar review tools" in skill
-    assert "After `OCR_SMOKE_TEST_PASSED`, stop" in skill
+    assert "ap_invoice_prepare_ocr_run" in skill
+    assert "ap_invoice_submit_ocr_result" in skill
+    assert "ap_invoice_review_from_ocr_result" in skill
+    assert "Do not read JSON sidecars" in skill
+    assert "Do not skip OCR" in skill
     assert "Prefer high-level tools" in skill
     for slash in ("/ap-review", "/ap-demo", "/ap-explain", "/ap-approval-brief"):
         assert slash in skill
@@ -37,11 +38,12 @@ def test_manifest_lists_high_level_tools_before_low_level_tools() -> None:
     manifest = json.loads((PROJECT_ROOT / "manifest.json").read_text("utf-8"))
     tools = [tool["name"] for tool in manifest["tools"]]
 
-    assert tools[:9] == [
-        "ap_invoice_ocr_smoke_test",
-        "ap_invoice_submit_ocr_smoke_test_result",
+    assert tools[:10] == [
         "ap_invoice_setup_demo_workspace",
         "ap_invoice_list_demo_cases",
+        "ap_invoice_prepare_ocr_run",
+        "ap_invoice_submit_ocr_result",
+        "ap_invoice_review_from_ocr_result",
         "ap_invoice_preview_folder",
         "ap_invoice_review_folder",
         "ap_invoice_review_demo_case",
@@ -55,8 +57,7 @@ def test_high_level_tool_descriptions_are_ux_focused() -> None:
     manifest = json.loads((PROJECT_ROOT / "manifest.json").read_text("utf-8"))
     descriptions = {tool["name"]: tool["description"] for tool in manifest["tools"]}
 
-    assert "Pre-Go blocked" in descriptions["ap_invoice_setup_demo_workspace"]
-    assert "Pre-Go blocked" in descriptions["ap_invoice_list_demo_cases"]
-    assert "Pre-Go blocked" in descriptions["ap_invoice_preview_folder"]
-    assert "Pre-Go blocked" in descriptions["ap_invoice_review_folder"]
-    assert descriptions["create_ap_review_case"].startswith("Pre-Go blocked")
+    assert "image-rendered demo PDFs" in descriptions["ap_invoice_setup_demo_workspace"]
+    assert "visible local" in descriptions["ap_invoice_list_demo_cases"]
+    assert "Claude OCR" in descriptions["ap_invoice_review_folder"]
+    assert "_runs" in descriptions["ap_invoice_submit_ocr_result"]

@@ -2,9 +2,9 @@
   "manifest_version": "0.4",
   "name": "ap-invoice-review-claude-ocr",
   "display_name": "AP Invoice Review — Claude OCR",
-  "version": "0.6.0",
-  "description": "Self-serve AP invoice MCPB with a Claude OCR image-result Go/No-Go smoke test.",
-  "long_description": "Milestone 0 validates whether Claude Desktop can OCR MCPB tool-result image content before the AP review flow is migrated away from legacy sidecars. OCR smoke results are written only to _runs/<run_id>/ocr_results. Never uses Airtable, Google Drive, or external ERP/SaaS writes.",
+  "version": "0.7.0",
+  "description": "Self-serve AP invoice MCPB with Claude OCR-to-decision folder review.",
+  "long_description": "Review visible local AP invoice folders by rendering invoice, purchase order, and goods receipt PDFs as images and requiring Claude OCR before deterministic AP matching. JSON sidecars are not used. OCR results are written only to _runs/<run_id>/ocr_results. Never uses Airtable, Google Drive, or external ERP/SaaS writes.",
   "author": {
     "name": "masamnisakasama"
   },
@@ -22,80 +22,92 @@
   },
   "tools": [
     {
-      "name": "ap_invoice_ocr_smoke_test",
-      "description": "Return a fixed invoice PNG as MCP image content so Claude Desktop can perform OCR."
-    },
-    {
-      "name": "ap_invoice_submit_ocr_smoke_test_result",
-      "description": "Validate Claude's OCR smoke result and save it under _runs/<run_id>/ocr_results."
-    },
-    {
       "name": "ap_invoice_setup_demo_workspace",
-      "description": "Pre-Go blocked: legacy sidecar demo export is disabled in the Claude OCR gate package."
+      "description": "Export bundled image-rendered demo PDFs to a visible local Documents/APInvoiceDemo folder."
     },
     {
       "name": "ap_invoice_list_demo_cases",
-      "description": "Pre-Go blocked: legacy demo case listing is disabled until no-sidecar OCR review is implemented."
+      "description": "List visible local AP invoice demo cases, folders, PDFs, and expected outcomes."
+    },
+    {
+      "name": "ap_invoice_prepare_ocr_run",
+      "description": "Render a PDF-only AP invoice folder to image content for Claude OCR."
+    },
+    {
+      "name": "ap_invoice_submit_ocr_result",
+      "description": "Validate Claude OCR results and save OCR JSON under _runs/<run_id>/ocr_results."
+    },
+    {
+      "name": "ap_invoice_review_from_ocr_result",
+      "description": "Run AP rules from saved Claude OCR results and return the final decision."
     },
     {
       "name": "ap_invoice_preview_folder",
-      "description": "Pre-Go blocked: folder preview would expose legacy sidecar facts and is disabled."
+      "description": "Preview a PDF-only local folder and classify invoice, purchase order, and goods receipt PDFs."
     },
     {
       "name": "ap_invoice_review_folder",
-      "description": "Pre-Go blocked: AP review is disabled until Claude OCR Go and no-sidecar implementation."
+      "description": "Start Claude OCR review for a visible local AP invoice folder."
     },
     {
       "name": "ap_invoice_review_demo_case",
-      "description": "Pre-Go blocked: legacy sidecar demo review is disabled in the Claude OCR gate package."
+      "description": "Start Claude OCR review for a bundled demo case from the visible APInvoiceDemo workspace."
     },
     {
       "name": "ap_invoice_explain_exception",
-      "description": "Pre-Go blocked: exception explanation is disabled until OCR review results exist."
+      "description": "Explain a completed Claude OCR AP review exception by run_id."
     },
     {
       "name": "ap_invoice_build_approval_brief",
-      "description": "Pre-Go blocked: approval briefs are disabled until OCR review results exist."
+      "description": "Build an approver-facing brief for a completed Claude OCR AP review by run_id."
+    },
+    {
+      "name": "ap_invoice_ocr_smoke_test",
+      "description": "Diagnostic: return a fixed invoice PNG as MCP image content so Claude Desktop can perform OCR."
+    },
+    {
+      "name": "ap_invoice_submit_ocr_smoke_test_result",
+      "description": "Diagnostic: validate Claude's OCR smoke result and save it under _runs/<run_id>/ocr_results."
     },
     {
       "name": "list_ap_demo_cases",
-      "description": "Pre-Go blocked compatibility tool: legacy sidecar demo listing is disabled."
+      "description": "Blocked compatibility tool: use ap_invoice_list_demo_cases instead."
     },
     {
       "name": "review_ap_demo_case",
-      "description": "Pre-Go blocked compatibility tool: legacy sidecar review is disabled."
+      "description": "Blocked compatibility tool: use ap_invoice_review_demo_case instead."
     },
     {
       "name": "review_ap_invoice_packet",
-      "description": "Pre-Go blocked compatibility tool: packet review is disabled until Claude OCR implementation."
+      "description": "Blocked compatibility tool: use the Claude OCR folder flow instead."
     },
     {
       "name": "explain_ap_exception",
-      "description": "Pre-Go blocked compatibility tool: explanations require OCR review results."
+      "description": "Blocked compatibility tool: use ap_invoice_explain_exception with a completed run_id."
     },
     {
       "name": "build_ap_approval_brief",
-      "description": "Pre-Go blocked compatibility tool: approval briefs require OCR review results."
+      "description": "Blocked compatibility tool: use ap_invoice_build_approval_brief with a completed run_id."
     },
     {
       "name": "create_ap_review_case",
-      "description": "Pre-Go blocked advanced tool: review cases are disabled in the OCR gate package."
+      "description": "Blocked advanced tool: use the Claude OCR folder flow instead."
     },
     {
       "name": "upload_ap_document",
-      "description": "Pre-Go blocked advanced tool: document upload is disabled in the OCR gate package."
+      "description": "Blocked advanced tool: use a PDF-only local folder instead."
     },
     {
       "name": "start_ap_invoice_review",
-      "description": "Pre-Go blocked advanced tool: deterministic sidecar review is disabled."
+      "description": "Blocked advanced tool: deterministic sidecar review is disabled."
     },
     {
       "name": "get_ap_invoice_review_result",
-      "description": "Pre-Go blocked advanced tool: review results require OCR review implementation."
+      "description": "Blocked advanced tool: final results are returned by ap_invoice_review_from_ocr_result."
     },
     {
       "name": "build_erp_draft_payload",
-      "description": "Pre-Go blocked advanced tool: draft payloads require OCR review implementation."
+      "description": "Blocked advanced tool: draft payloads are included in completed OCR review results."
     }
   ],
   "keywords": ["accounts-payable", "invoice", "mcp", "mcpb", "workflow-pack"],

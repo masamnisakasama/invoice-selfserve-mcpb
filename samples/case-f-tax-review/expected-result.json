@@ -1,8 +1,0 @@
-{
-  "case": "case-f-tax-review",
-  "recommendation": "REFER_TAX_REVIEW",
-  "rule_ids": [
-    "AP-TAX-001"
-  ],
-  "write_performed": false
-}

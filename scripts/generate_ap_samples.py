@@ -3,36 +3,17 @@ from __future__ import annotations
 import json
 import shutil
 from datetime import date, timedelta
+from io import BytesIO
 from pathlib import Path
 from typing import Any
+
+from PIL import Image, ImageDraw, ImageFont
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ROOT_SAMPLES = PROJECT_ROOT / "samples"
 PACK_SAMPLES = PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "samples"
 PACK_TESTS = PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "tests"
-
-
-PDF_BYTES = b"""%PDF-1.4
-1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
-endobj
-2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
-endobj
-3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Contents 4 0 R >>
-endobj
-4 0 obj
-<< /Length 54 >>
-stream
-BT /F1 12 Tf 36 96 Td (AP Invoice MCPB demo fixture) Tj ET
-endstream
-endobj
-trailer
-<< /Root 1 0 R >>
-%%EOF
-"""
 
 
 def line_item(amount: int = 100000, quantity: int = 100) -> dict[str, Any]:
@@ -101,6 +82,101 @@ def grn_fields(*, receipt_number: str, po_number: str, quantity: int = 100) -> d
     }
 
 
+def write_document_pdf(path: Path, *, document_type: str, fields: dict[str, Any]) -> None:
+    image = Image.new("RGB", (1240, 1754), "white")
+    draw = ImageDraw.Draw(image)
+    title_font = _font(54)
+    section_font = _font(34)
+    body_font = _font(28)
+    small_font = _font(22)
+
+    title = {
+        "invoice": "INVOICE",
+        "purchase_order": "PURCHASE ORDER",
+        "goods_receipt": "GOODS RECEIPT / INSPECTION REPORT",
+    }[document_type]
+    draw.rectangle((48, 48, 1192, 1706), outline="black", width=4)
+    draw.text((90, 86), title, fill="black", font=title_font)
+    draw.line((90, 165, 1150, 165), fill="black", width=3)
+
+    y = 220
+    for label, value in _display_rows(document_type, fields):
+        if label == "Line Items":
+            y += 18
+            draw.text((90, y), "Line Items", fill="black", font=section_font)
+            y += 54
+            continue
+        draw.text((110, y), f"{label}: {value}", fill="black", font=body_font)
+        y += 46
+
+    draw.text((90, 1640), "Fictional AP Invoice OCR demo data only", fill="black", font=small_font)
+    buffer = BytesIO()
+    image.save(buffer, format="PDF", resolution=150.0)
+    path.write_bytes(buffer.getvalue())
+
+
+def _display_rows(document_type: str, fields: dict[str, Any]) -> list[tuple[str, Any]]:
+    if document_type == "invoice":
+        item = fields["line_items"][0]
+        return [
+            ("Invoice No", fields["invoice_number"]),
+            ("Invoice Date", fields["invoice_date"]),
+            ("Due Date", fields["due_date"]),
+            ("Vendor", fields["vendor_name"]),
+            ("Vendor ID", fields["vendor_id"]),
+            ("Bank Account", fields["bank_account"]),
+            ("PO No", fields["po_number"]),
+            ("Currency", fields["currency"]),
+            ("Tax Code", fields["tax_code"]),
+            ("Cost Center", fields["cost_center"]),
+            ("Line Items", ""),
+            ("Description", item["description"]),
+            ("Quantity", _format_number(item["quantity"])),
+            ("Unit Price", f"JPY {_format_number(item['unit_price'])}"),
+            ("Amount", f"JPY {_format_number(item['amount'])}"),
+            ("Subtotal", f"JPY {_format_number(fields['subtotal_amount'])}"),
+            ("Tax", f"JPY {_format_number(fields['tax_amount'])}"),
+            ("Total", f"JPY {_format_number(fields['total_amount'])}"),
+        ]
+    if document_type == "purchase_order":
+        item = fields["line_items"][0]
+        return [
+            ("PO No", fields["po_number"]),
+            ("Vendor ID", fields["vendor_id"]),
+            ("Currency", fields["currency"]),
+            ("Approved", "Yes" if fields["approved"] else "No"),
+            ("Remaining Balance", f"JPY {_format_number(fields['remaining_balance'])}"),
+            ("Line Items", ""),
+            ("Description", item["description"]),
+            ("Quantity", _format_number(item["quantity"])),
+            ("Unit Price", f"JPY {_format_number(item['unit_price'])}"),
+            ("Amount", f"JPY {_format_number(item['amount'])}"),
+            ("Total", f"JPY {_format_number(fields['total_amount'])}"),
+        ]
+    return [
+        ("Receipt No", fields["receipt_number"]),
+        ("PO No", fields["po_number"]),
+        ("Received", "Yes" if fields["received"] else "No"),
+        ("Received Quantity", _format_number(fields["received_quantity"])),
+        ("Receipt Date", fields["receipt_date"]),
+        ("Item", "Office supplies bundle"),
+    ]
+
+
+def _format_number(value: Any) -> str:
+    number = float(value)
+    if number.is_integer():
+        return f"{int(number):,}"
+    return f"{number:,.2f}"
+
+
+def _font(size: int) -> Any:
+    try:
+        return ImageFont.truetype("DejaVuSans.ttf", size=size)
+    except OSError:
+        return ImageFont.load_default()
+
+
 CASES: dict[str, dict[str, Any]] = {
     "case-a-pay-ready": {
         "invoice": invoice_fields(
@@ -148,7 +224,7 @@ CASES: dict[str, dict[str, Any]] = {
         "goods_receipt": grn_fields(
             receipt_number="GRN-2026-0005",
             po_number="PO-2026-0005",
-            quantity=50,
+            quantity=60,
         ),
         "expected": {"recommendation": "REFER_GRN_MISMATCH", "rule_ids": ["AP-GRN-001"]},
     },
@@ -156,12 +232,12 @@ CASES: dict[str, dict[str, Any]] = {
         "invoice": invoice_fields(
             invoice_number="INV-2026-0012",
             po_number="PO-2026-0006",
-            total_amount=110000,
+            total_amount=108000,
             invoice_date="2026-07-15",
             subtotal_amount=100000,
-            tax_amount=9000,
+            tax_amount=8000,
         ),
-        "purchase_order": po_fields(po_number="PO-2026-0006", total_amount=110000),
+        "purchase_order": po_fields(po_number="PO-2026-0006", total_amount=108000),
         "goods_receipt": grn_fields(receipt_number="GRN-2026-0006", po_number="PO-2026-0006"),
         "expected": {"recommendation": "REFER_TAX_REVIEW", "rule_ids": ["AP-TAX-001"]},
     },
@@ -176,18 +252,11 @@ def write_case(base_dir: Path, case_name: str, payload: dict[str, Any]) -> None:
     case_dir = base_dir / case_name
     case_dir.mkdir(parents=True, exist_ok=True)
     for document_type in ("invoice", "purchase_order", "goods_receipt"):
-        (case_dir / f"{document_type}.pdf").write_bytes(PDF_BYTES)
-        write_json(
-            case_dir / f"{document_type}.json",
-            {"document_type": document_type, "fields": payload[document_type]},
+        write_document_pdf(
+            case_dir / f"{document_type}.pdf",
+            document_type=document_type,
+            fields=payload[document_type],
         )
-    expected = {
-        "case": case_name,
-        "recommendation": payload["expected"]["recommendation"],
-        "rule_ids": payload["expected"]["rule_ids"],
-        "write_performed": False,
-    }
-    write_json(case_dir / "expected-result.json", expected)
 
 
 def main() -> None:
@@ -195,9 +264,12 @@ def main() -> None:
         if target.exists():
             shutil.rmtree(target)
         target.mkdir(parents=True, exist_ok=True)
+    if PACK_TESTS.exists():
+        shutil.rmtree(PACK_TESTS)
+    PACK_TESTS.mkdir(parents=True, exist_ok=True)
+    for target in (ROOT_SAMPLES, PACK_SAMPLES):
         for case_name, payload in CASES.items():
             write_case(target, case_name, payload)
-    PACK_TESTS.mkdir(parents=True, exist_ok=True)
     for index, (case_name, payload) in enumerate(CASES.items(), start=1):
         suffix = chr(ord("a") + index - 1)
         write_json(

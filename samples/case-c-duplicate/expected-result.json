@@ -1,8 +1,0 @@
-{
-  "case": "case-c-duplicate",
-  "recommendation": "REFER_DUPLICATE_REVIEW",
-  "rule_ids": [
-    "AP-DUP-001"
-  ],
-  "write_performed": false
-}

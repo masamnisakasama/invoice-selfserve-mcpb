@@ -1,8 +1,0 @@
-{
-  "case": "case-d-vendor-review",
-  "recommendation": "REFER_VENDOR_REVIEW",
-  "rule_ids": [
-    "AP-VENDOR-002"
-  ],
-  "write_performed": false
-}

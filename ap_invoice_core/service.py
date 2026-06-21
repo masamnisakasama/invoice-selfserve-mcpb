@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import shutil
 import uuid
 from dataclasses import dataclass, field
@@ -9,12 +8,20 @@ from pathlib import Path
 from typing import Any
 
 from .engine import RULESET_VERSION, WORKFLOW_PACK, review_invoice_packet
-from .extraction import load_canonical_from_documents
 from .models import DecisionResult, Evidence, Recommendation, RuleResult
 from .ocr_smoke import (
     build_ocr_smoke_test,
     default_visible_workspace,
     submit_ocr_smoke_test_result,
+)
+from .ocr_flow import (
+    classify_document_pdf,
+    load_validated_run,
+    mark_review_completed,
+    prepare_ocr_run,
+    read_json,
+    require_run_dir,
+    submit_ocr_result,
 )
 
 
@@ -222,37 +229,11 @@ class ReviewService:
         }
 
     def start_review(self, *, case_id: str) -> dict[str, Any]:
-        case = self._require_case(case_id)
-        if case.result is not None and case.completed_job_id is not None:
-            return {"job_id": case.completed_job_id, "case_id": case_id, "status": "completed"}
-        missing = [document_type for document_type in DOCUMENT_TYPES if document_type not in case.documents]
-        if missing:
-            raise ValueError(f"Missing required documents: {', '.join(missing)}")
-        job_id = f"job-{uuid.uuid4().hex[:12]}"
-        job = ReviewJob(job_id=job_id, case_id=case_id, status="running")
-        self._jobs[job_id] = job
-        try:
-            facts = load_canonical_from_documents(
-                invoice_pdf=case.documents["invoice"].file_path,
-                purchase_order_pdf=case.documents["purchase_order"].file_path,
-                goods_receipt_pdf=case.documents["goods_receipt"].file_path,
-            )
-            result = review_invoice_packet(
-                case_id=case_id,
-                tenant_id=case.tenant_id,
-                facts=facts,
-                pack_dir=self.pack_dir,
-                artifact_dir=self.artifact_root / case_id,
-            )
-            case.result = result
-            case.completed_job_id = job_id
-            job.result = result
-            job.status = "completed"
-        except Exception as exc:
-            job.status = "failed"
-            job.error = str(exc)
-            raise
-        return {"job_id": job_id, "case_id": case_id, "status": job.status}
+        self._require_case(case_id)
+        raise ValueError(
+            "Legacy sidecar review is disabled. Use prepare_ocr_run, submit_ocr_result, "
+            "and review_from_ocr_result."
+        )
 
     def get_review_result(self, *, job_id: str) -> dict[str, Any]:
         job = self._require_job(job_id)
@@ -329,7 +310,7 @@ class ReviewService:
             source = source_root / case_id
             target = workspace / case_id
             if target.exists():
-                if overwrite:
+                if overwrite or _workspace_case_requires_refresh(target):
                     shutil.rmtree(target)
                 else:
                     continue
@@ -339,8 +320,8 @@ class ReviewService:
             "workspace_dir": str(workspace),
             "cases": [self._workspace_case_descriptor(case_id, workspace) for case_id in DEMO_CASES],
             "usage_ja": (
-                "PDFを開いて確認できます。レビューする場合は『case-aをレビューして』"
-                "またはフォルダパスを指定してください。"
+                "画像PDFを開いて確認できます。レビューする場合は『case-aをレビューして』"
+                "またはフォルダパスを指定してください。OCR結果JSONは_runs配下にだけ保存します。"
             ),
             "write_performed": False,
         }
@@ -366,15 +347,12 @@ class ReviewService:
         if normalized_case_id not in DEMO_CASES:
             raise ValueError(f"Unknown demo case: {case_id}")
         workspace = self.default_workspace_dir.resolve()
+        self.setup_demo_workspace()
         case_dir = workspace / normalized_case_id
-        if not case_dir.is_dir():
-            self.setup_demo_workspace()
-        case_dir = workspace / normalized_case_id
-        return self.review_folder(
+        return self.prepare_ocr_run(
             tenant_id=tenant_id,
             folder_path=str(case_dir),
             target_system=target_system,
-            demo_case_id=normalized_case_id,
         )
 
     def preview_folder(self, *, folder_path: str) -> dict[str, Any]:
@@ -389,27 +367,73 @@ class ReviewService:
         target_system: str = "generic_ap",
         demo_case_id: str | None = None,
     ) -> dict[str, Any]:
-        folder = self._resolve_folder_path(folder_path)
-        preview = self._preview_folder(folder)
-        if not preview["ready_for_review"]:
-            return {**preview, "status": "blocked", "write_performed": False}
-        docs_by_type = {
-            str(item["document_type"]): str(item["path"]) for item in preview["detected_documents"]
-        }
-        result = self.review_invoice_packet_from_paths(
+        return self.prepare_ocr_run(
+            folder_path=folder_path,
             tenant_id=tenant_id,
-            invoice_path=docs_by_type["invoice"],
-            purchase_order_path=docs_by_type["purchase_order"],
-            goods_receipt_path=docs_by_type["goods_receipt"],
-            case_label=folder.name,
             target_system=target_system,
-            demo_case_id=demo_case_id,
         )
-        return {
-            "folder_path": str(folder),
-            "detected_documents": preview["detected_documents"],
-            **result,
-        }
+
+    def prepare_ocr_run(
+        self,
+        *,
+        folder_path: str,
+        tenant_id: str = "demo-tenant",
+        target_system: str = "generic_ap",
+    ) -> dict[str, Any]:
+        if target_system not in TARGET_SYSTEMS:
+            raise ValueError(f"Unsupported target_system: {target_system}")
+        folder = self._resolve_folder_path(folder_path)
+        return prepare_ocr_run(
+            workspace_dir=self.default_workspace_dir.resolve(),
+            folder_path=folder,
+            tenant_id=tenant_id,
+            target_system=target_system,
+        )
+
+    def submit_ocr_result(
+        self,
+        *,
+        run_id: str,
+        ocr_results: dict[str, Any],
+    ) -> dict[str, Any]:
+        return submit_ocr_result(
+            workspace_dir=self.default_workspace_dir.resolve(),
+            run_id=run_id,
+            ocr_results=ocr_results,
+        )
+
+    def review_from_ocr_result(
+        self,
+        *,
+        run_id: str,
+        target_system: str = "generic_ap",
+    ) -> dict[str, Any]:
+        if target_system not in TARGET_SYSTEMS:
+            raise ValueError(f"Unsupported target_system: {target_system}")
+        state, facts, run_dir = load_validated_run(self.default_workspace_dir.resolve(), run_id)
+        result = review_invoice_packet(
+            case_id=run_id,
+            tenant_id=str(state.get("tenant_id") or "demo-tenant"),
+            facts=facts,
+            pack_dir=self.pack_dir,
+            artifact_dir=run_dir / "artifacts",
+        )
+        payload = _business_packet_from_ocr_run(
+            result=result,
+            run_id=run_id,
+            target_system=target_system,
+            run_dir=run_dir,
+            ocr_summary={
+                "invoice_number": facts.invoice.invoice_number.value,
+                "vendor_id": facts.invoice.vendor_id.value,
+                "po_number": facts.invoice.po_number.value,
+                "invoice_total": facts.invoice.total_amount.value,
+                "purchase_order_total": facts.purchase_order.total_amount.value,
+                "received_quantity": facts.goods_receipt.received_quantity.value,
+            },
+        )
+        mark_review_completed(run_dir, payload)
+        return payload
 
     def review_invoice_packet_from_paths(
         self,
@@ -422,40 +446,8 @@ class ReviewService:
         target_system: str = "generic_ap",
         demo_case_id: str | None = None,
     ) -> dict[str, Any]:
-        if target_system not in TARGET_SYSTEMS:
-            raise ValueError(f"Unsupported target_system: {target_system}")
-        created = self.create_case(tenant_id=tenant_id, case_label=case_label)
-        case_id = str(created["case_id"])
-        uploads = [
-            self.upload_document(
-                case_id=case_id,
-                document_type="invoice",
-                file_path=invoice_path,
-            ),
-            self.upload_document(
-                case_id=case_id,
-                document_type="purchase_order",
-                file_path=purchase_order_path,
-            ),
-            self.upload_document(
-                case_id=case_id,
-                document_type="goods_receipt",
-                file_path=goods_receipt_path,
-            ),
-        ]
-        started = self.start_review(case_id=case_id)
-        job_id = str(started["job_id"])
-        result = self._require_job(job_id).result
-        if result is None:
-            raise RuntimeError(f"Review did not complete for job_id: {job_id}")
-        draft = self.build_draft_payload(case_id=case_id, target_system=target_system)
-        return _business_packet(
-            result=result,
-            job_id=job_id,
-            demo_case_id=demo_case_id,
-            target_system=target_system,
-            draft_payload=draft["payload"],
-            uploads=uploads,
+        raise ValueError(
+            "Legacy packet review is disabled. Use a PDF-only folder with the Claude OCR flow."
         )
 
     def explain_exception(self, *, job_id: str, audience: str = "ap_operator") -> dict[str, Any]:
@@ -497,6 +489,72 @@ class ReviewService:
             "evidence": [_evidence_summary(evidence) for evidence in result.evidence],
             "rule_ids": [rule.rule_id for rule in result.rule_results],
             "next_actions_ja": NEXT_ACTIONS_JA[result.recommendation],
+            "write_performed": False,
+        }
+
+    def explain_completed_ocr_review(
+        self,
+        *,
+        run_id: str,
+        audience: str = "ap_operator",
+    ) -> dict[str, Any]:
+        if audience not in AUDIENCES:
+            raise ValueError(f"Unsupported audience: {audience}")
+        packet = self._load_completed_ocr_packet(run_id)
+        return {
+            "job_id": run_id,
+            "run_id": run_id,
+            "audience": audience,
+            "recommendation": packet["recommendation"],
+            "recommendation_label_ja": packet["recommendation_label_ja"],
+            "exception_summary_ja": packet["exception_summary_ja"],
+            "root_causes": [
+                {
+                    "rule_id": rule["rule_id"],
+                    "recommendation": packet["recommendation"],
+                    "reason_ja": rule.get("description", ""),
+                    "evidence": rule.get("evidence", []),
+                }
+                for rule in packet.get("rule_results", [])
+            ],
+            "rule_ids": packet.get("rule_ids", []),
+            "evidence": packet.get("evidence", []),
+            "next_actions_ja": packet.get("next_actions_ja", []),
+            "draft_message_ja": (
+                "draft payloadは生成済みですが、外部ERP/SaaSへの本書き込みは行っていません。"
+            ),
+            "artifact_paths": packet.get("artifact_paths", {}),
+            "write_performed": False,
+        }
+
+    def build_completed_ocr_approval_brief(self, *, run_id: str) -> dict[str, Any]:
+        packet = self._load_completed_ocr_packet(run_id)
+        recommendation = Recommendation(packet["recommendation"])
+        action = APPROVAL_ACTIONS[recommendation]
+        return {
+            "job_id": run_id,
+            "run_id": run_id,
+            "approval_recommendation": action,
+            "recommendation": packet["recommendation"],
+            "recommendation_label_ja": packet["recommendation_label_ja"],
+            "brief_ja": (
+                f"判定: {packet['recommendation']}\n"
+                f"支払判断: {action}\n"
+                f"理由: {packet['exception_summary_ja']}\n"
+                f"write_performed=false"
+            ),
+            "risk_points_ja": (
+                ["主要照合項目は一致していますが、人間承認前の自動支払は行いません。"]
+                if recommendation is Recommendation.PAY_READY_CANDIDATE
+                else [
+                    f"{rule['rule_id']}: {rule.get('description', '')}"
+                    for rule in packet.get("rule_results", [])
+                ]
+            ),
+            "evidence": packet.get("evidence", []),
+            "rule_ids": packet.get("rule_ids", []),
+            "next_actions_ja": packet.get("next_actions_ja", []),
+            "artifact_paths": packet.get("artifact_paths", {}),
             "write_performed": False,
         }
 
@@ -560,6 +618,16 @@ class ReviewService:
         if not any(existing == resolved for existing in self.allowed_upload_roots):
             self.allowed_upload_roots.append(resolved)
 
+    def _load_completed_ocr_packet(self, run_id: str) -> dict[str, Any]:
+        run_dir = require_run_dir(self.default_workspace_dir.resolve(), run_id)
+        state = read_json(run_dir / "run_state.json")
+        if state.get("status") != "REVIEW_COMPLETED" or "review_result" not in state:
+            raise ValueError(f"OCR review result is not available for run_id: {run_id}")
+        packet = state["review_result"]
+        if not isinstance(packet, dict):
+            raise ValueError(f"OCR review result is invalid for run_id: {run_id}")
+        return packet
+
     def _preview_folder(self, folder: Path) -> dict[str, Any]:
         pdfs = sorted(folder.glob("*.pdf"))
         if not pdfs:
@@ -571,29 +639,21 @@ class ReviewService:
         classified: dict[str, dict[str, Any]] = {}
         unclassified: list[str] = []
         errors: list[str] = []
+        forbidden_json = sorted(path.name for path in folder.glob("*.json"))
+        if forbidden_json:
+            return _folder_error(
+                folder=folder,
+                error_code="INPUT_SIDECAR_JSON_FORBIDDEN",
+                message_ja="入力フォルダにJSONファイルが含まれています。PDFのみのフォルダを指定してください。",
+                validation_errors=[f"{name}: JSON sidecar is forbidden" for name in forbidden_json],
+            )
         for pdf in pdfs:
-            sidecar = pdf.with_suffix(".json")
-            sidecar_type = None
-            fields: dict[str, Any] = {}
-            if sidecar.exists():
-                payload = json.loads(sidecar.read_text("utf-8"))
-                sidecar_type = payload.get("document_type")
-                fields = payload.get("fields", {})
-            filename_type = _classify_by_filename(pdf.name)
-            document_type = sidecar_type or filename_type
+            document_type = classify_document_pdf(pdf.name)
             if document_type and document_type not in DOCUMENT_TYPES:
                 errors.append(f"{pdf.name}: unsupported document_type {document_type}")
                 continue
-            if sidecar_type and filename_type and sidecar_type != filename_type:
-                errors.append(
-                    f"{pdf.name}: sidecar document_type {sidecar_type} conflicts with filename"
-                )
-                continue
             if not document_type:
                 unclassified.append(pdf.name)
-                continue
-            if not sidecar.exists():
-                errors.append(f"{pdf.name}: missing sidecar JSON")
                 continue
             if document_type in classified:
                 errors.append(f"{pdf.name}: duplicate {document_type} document")
@@ -601,8 +661,7 @@ class ReviewService:
             classified[document_type] = {
                 "document_type": document_type,
                 "path": str(pdf),
-                "sidecar_path": str(sidecar),
-                "key_fields": _key_fields(document_type, fields),
+                "key_fields": {},
             }
         missing = [document_type for document_type in DOCUMENT_TYPES if document_type not in classified]
         if unclassified:
@@ -690,6 +749,12 @@ def _normalize_demo_case_id(case_id: str) -> str:
 
 def _workspace_initialized(workspace: Path) -> bool:
     return all((workspace / case_id).is_dir() for case_id in DEMO_CASES)
+
+
+def _workspace_case_requires_refresh(case_dir: Path) -> bool:
+    if any(case_dir.glob("*.json")):
+        return True
+    return any(not (case_dir / f"{document_type}.pdf").is_file() for document_type in DOCUMENT_TYPES)
 
 
 def _classify_by_filename(filename: str) -> str | None:
@@ -800,9 +865,53 @@ def _business_packet(
         "audit_artifacts": result.audit_artifacts.model_dump(mode="json"),
         "document_uploads": uploads,
         "demo_note": (
-            "This demo requires sidecar JSON files next to the sample PDFs. "
-            "Production OCR/Textract is out of scope for this MCPB demo."
+            "Legacy in-memory review path. Customer-facing demos should use the "
+            "Claude OCR folder flow and never require input sidecar JSON files."
         ),
+        "write_performed": False,
+    }
+
+
+def _business_packet_from_ocr_run(
+    *,
+    result: DecisionResult,
+    run_id: str,
+    target_system: str,
+    run_dir: Path,
+    ocr_summary: dict[str, Any],
+) -> dict[str, Any]:
+    draft_payloads = result.draft_payloads.model_dump(mode="json")
+    draft_payload = draft_payloads[target_system]
+    return {
+        "status": "REVIEW_COMPLETED",
+        "run_id": run_id,
+        "case_id": result.case_id,
+        "target_system": target_system,
+        "recommendation": result.recommendation.value,
+        "recommendation_label_ja": result.recommendation_label_ja,
+        "business_meaning_ja": _business_meaning_ja(result.recommendation),
+        "summary_ja": result.summary,
+        "ocr_summary": ocr_summary,
+        "exception_summary_ja": _exception_summary_ja(result),
+        "exceptions": result.exceptions,
+        "rule_results": [rule.model_dump(mode="json") for rule in result.rule_results],
+        "rule_ids": [rule.rule_id for rule in result.rule_results],
+        "match_results": {
+            key: value.model_dump(mode="json") for key, value in result.match_results.items()
+        },
+        "evidence": [_evidence_summary(evidence) for evidence in result.evidence],
+        "missing_information": result.missing_information,
+        "next_actions_ja": NEXT_ACTIONS_JA[result.recommendation],
+        "draft_payloads": draft_payloads,
+        "draft_payload": draft_payload,
+        "draft_payload_summary": _draft_payload_summary(draft_payload),
+        "artifact_paths": {
+            "ocr_results": str(run_dir / "ocr_results"),
+            "canonical_facts": str(run_dir / "artifacts" / "canonical_facts.json"),
+            "decision_result": str(run_dir / "artifacts" / "decision_result.json"),
+            "draft_payloads": str(run_dir / "artifacts" / "draft_payloads.json"),
+        },
+        "audit_artifacts": result.audit_artifacts.model_dump(mode="json"),
         "write_performed": False,
     }
 
@@ -854,7 +963,9 @@ def _evidence_summary(evidence: Evidence) -> dict[str, Any]:
         "document_name": evidence.document_name,
         "page": evidence.page,
         "field_label": evidence.field_label,
+        "raw_text": evidence.raw_text,
         "normalized_value": evidence.normalized_value,
+        "source": evidence.source,
     }
 
 

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
+
+import fitz
 
 
 REQUIRED_CASES = (
@@ -16,10 +19,11 @@ REQUIRED_CASES = (
 )
 REQUIRED_DOCS = ("invoice", "purchase_order", "goods_receipt")
 REQUIRED_TOOLS = (
-    "ap_invoice_ocr_smoke_test",
-    "ap_invoice_submit_ocr_smoke_test_result",
     "ap_invoice_setup_demo_workspace",
     "ap_invoice_list_demo_cases",
+    "ap_invoice_prepare_ocr_run",
+    "ap_invoice_submit_ocr_result",
+    "ap_invoice_review_from_ocr_result",
     "ap_invoice_preview_folder",
     "ap_invoice_review_folder",
     "ap_invoice_review_demo_case",
@@ -43,8 +47,8 @@ def main() -> None:
         else:
             manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
         version = str(manifest.get("version", "0"))
-        if _version_tuple(version) < (0, 6, 0):
-            failures.append(f"manifest version must be >= 0.6.0, got {version}")
+        if _version_tuple(version) < (0, 7, 0):
+            failures.append(f"manifest version must be >= 0.7.0, got {version}")
         if manifest.get("name") != "ap-invoice-review-claude-ocr":
             failures.append("manifest name must be ap-invoice-review-claude-ocr")
         if "Claude OCR" not in str(manifest.get("display_name", "")):
@@ -55,10 +59,21 @@ def main() -> None:
                 failures.append(f"manifest tool missing: {required_tool}")
         for case_id in REQUIRED_CASES:
             for doc in REQUIRED_DOCS:
-                for suffix in (".pdf", ".json"):
-                    path = f"samples/{case_id}/{doc}{suffix}"
-                    if path not in names:
-                        failures.append(f"sample artifact missing: {path}")
+                path = f"samples/{case_id}/{doc}.pdf"
+                if path not in names:
+                    failures.append(f"sample PDF missing: {path}")
+        forbidden_json = [
+            name
+            for name in names
+            if (
+                name.startswith("samples/")
+                or name.startswith("workflow-packs/ap-invoice-v1/samples/")
+            )
+            and name.endswith(".json")
+        ]
+        if forbidden_json:
+            failures.append(f"sample JSON sidecars forbidden: {', '.join(sorted(forbidden_json)[:5])}")
+        failures.extend(_check_rendered_pdfs(zf, names))
         if "workflow-packs/ap-invoice-v1/ruleset.yaml" not in names:
             failures.append("workflow ruleset missing")
     if failures:
@@ -66,6 +81,35 @@ def main() -> None:
             print(failure)
         raise SystemExit(1)
     print(f"MCPB content check passed: {bundle}")
+
+
+def _check_rendered_pdfs(zf: zipfile.ZipFile, names: set[str]) -> list[str]:
+    failures: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_dir = Path(tmp)
+        for case_id in REQUIRED_CASES:
+            for doc in REQUIRED_DOCS:
+                name = f"samples/{case_id}/{doc}.pdf"
+                if name not in names:
+                    continue
+                pdf_path = tmp_dir / f"{case_id}-{doc}.pdf"
+                pdf_path.write_bytes(zf.read(name))
+                document = None
+                try:
+                    document = fitz.open(pdf_path)
+                    page = document.load_page(0)
+                    pixmap = page.get_pixmap(matrix=fitz.Matrix(0.25, 0.25), alpha=False)
+                    if len(set(pixmap.samples)) < 8:
+                        failures.append(f"rendered PDF appears blank: {name}")
+                    text = page.get_text().strip()
+                    if text:
+                        failures.append(f"sample PDF must be image-rendered without text layer: {name}")
+                except Exception as exc:
+                    failures.append(f"sample PDF render failed: {name}: {exc}")
+                finally:
+                    if document is not None:
+                        document.close()
+    return failures
 
 
 def _version_tuple(version: str) -> tuple[int, int, int]:

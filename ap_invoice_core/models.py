@@ -53,6 +53,7 @@ class Evidence(BaseModel):
     raw_text: str
     normalized_value: Any = None
     bbox: list[int] | None = None
+    source: str | None = None
 
 
 class FieldValue(BaseModel):
@@ -187,4 +188,3 @@ class DecisionResult(BaseModel):
     draft_payloads: DraftPayloads
     audit_artifacts: AuditArtifacts
     write_performed: bool = False
-

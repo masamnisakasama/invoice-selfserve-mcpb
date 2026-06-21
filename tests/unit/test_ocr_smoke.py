@@ -9,12 +9,7 @@ from mcp.types import ImageContent, TextContent
 
 from ap_invoice_core.ocr_smoke import create_smoke_invoice_png
 from ap_invoice_core.service import ReviewService
-from ap_invoice_mcp.server import (
-    ap_invoice_review_demo_case,
-    ap_invoice_setup_demo_workspace,
-    mcp,
-    review_ap_invoice_packet,
-)
+from ap_invoice_mcp.server import mcp, review_ap_invoice_packet
 from tests.helpers import PROJECT_ROOT
 
 
@@ -99,9 +94,7 @@ def test_ocr_smoke_tool_returns_image_content() -> None:
     assert base64.b64decode(image.data).startswith(b"\x89PNG\r\n\x1a\n")
 
 
-def test_claude_ocr_gate_blocks_legacy_sidecar_tools() -> None:
-    setup = ap_invoice_setup_demo_workspace()
-    demo_review = ap_invoice_review_demo_case(case_id="case-a")
+def test_legacy_sidecar_packet_tool_is_disabled() -> None:
     packet_review = review_ap_invoice_packet(
         tenant_id="demo-tenant",
         invoice_path="samples/case-a-pay-ready/invoice.pdf",
@@ -109,11 +102,11 @@ def test_claude_ocr_gate_blocks_legacy_sidecar_tools() -> None:
         goods_receipt_path="samples/case-a-pay-ready/goods_receipt.pdf",
     )
 
-    for result in (setup, demo_review, packet_review):
-        assert result["status"] == "blocked"
-        assert result["error_code"] == "CLAUDE_OCR_SMOKE_GO_REQUIRED"
-        assert result["allowed_tools_now"] == [
-            "ap_invoice_ocr_smoke_test",
-            "ap_invoice_submit_ocr_smoke_test_result",
-        ]
-        assert result["write_performed"] is False
+    assert packet_review["status"] == "blocked"
+    assert packet_review["error_code"] == "LEGACY_SIDECAR_FLOW_DISABLED"
+    assert packet_review["allowed_tools_now"] == [
+        "ap_invoice_prepare_ocr_run",
+        "ap_invoice_submit_ocr_result",
+        "ap_invoice_review_from_ocr_result",
+    ]
+    assert packet_review["write_performed"] is False
