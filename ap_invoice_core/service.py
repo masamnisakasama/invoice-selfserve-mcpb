@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import shutil
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -36,6 +38,25 @@ DEMO_CASES: dict[str, dict[str, str]] = {
         "expected_recommendation": "REFER_VENDOR_REVIEW",
         "business_value_ja": "支払先口座が取引先マスタと一致しないケースです。",
     },
+    "case-e-grn-mismatch": {
+        "label_ja": "検収差異",
+        "expected_recommendation": "REFER_GRN_MISMATCH",
+        "business_value_ja": "検収数量不足を検出し、未検収支払を防ぐケースです。",
+    },
+    "case-f-tax-review": {
+        "label_ja": "税務確認",
+        "expected_recommendation": "REFER_TAX_REVIEW",
+        "business_value_ja": "税額差異を検出し、税務確認へ回すケースです。",
+    },
+}
+
+SHORT_ALIASES: dict[str, list[str]] = {
+    "case-a-pay-ready": ["case-a", "a"],
+    "case-b-po-mismatch": ["case-b", "b"],
+    "case-c-duplicate": ["case-c", "c"],
+    "case-d-vendor-review": ["case-d", "d"],
+    "case-e-grn-mismatch": ["case-e", "e"],
+    "case-f-tax-review": ["case-f", "f"],
 }
 
 NEXT_ACTIONS_JA: dict[Recommendation, list[str]] = {
@@ -122,14 +143,19 @@ class ReviewService:
         *,
         project_root: str | Path | None = None,
         artifact_root: str | Path | None = None,
+        default_workspace_dir: str | Path | None = None,
     ) -> None:
         self.project_root = Path(project_root or Path.cwd()).resolve()
         self.pack_dir = self.project_root / "workflow-packs" / WORKFLOW_PACK
         self.artifact_root = Path(artifact_root or self.project_root / "artifacts").resolve()
-        self.allowed_upload_roots = (
+        self.default_workspace_dir = Path(
+            default_workspace_dir or Path.home() / "Documents" / "APInvoiceDemo"
+        ).resolve()
+        self.allowed_upload_roots = [
             (self.project_root / "samples").resolve(),
             (self.pack_dir / "samples").resolve(),
-        )
+            self.default_workspace_dir.resolve(),
+        ]
         self._cases: dict[str, ReviewCase] = {}
         self._jobs: dict[str, ReviewJob] = {}
 
@@ -256,11 +282,56 @@ class ReviewService:
         }
 
     def list_demo_cases(self) -> dict[str, Any]:
+        workspace_dir = self.default_workspace_dir.resolve()
         return {
             "demo_cases": [
-                {"case_id": case_id, **metadata} for case_id, metadata in DEMO_CASES.items()
+                self._demo_case_descriptor(case_id, workspace_dir)
+                for case_id in DEMO_CASES
             ],
             "usage_ja": "case_idを選び、review_ap_demo_caseで同梱サンプルをレビューできます。",
+            "workspace_dir": str(workspace_dir),
+            "workspace_initialized": _workspace_initialized(workspace_dir),
+            "write_performed": False,
+        }
+
+    def setup_demo_workspace(
+        self,
+        *,
+        workspace_dir: str | None = None,
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
+        workspace = self._resolve_workspace_dir(workspace_dir)
+        source_root = self.project_root / "samples"
+        if not source_root.is_dir():
+            raise FileNotFoundError(f"Bundled samples not found: {source_root}")
+        workspace.mkdir(parents=True, exist_ok=True)
+        for case_id in DEMO_CASES:
+            source = source_root / case_id
+            target = workspace / case_id
+            if target.exists():
+                if overwrite:
+                    shutil.rmtree(target)
+                else:
+                    continue
+            shutil.copytree(source, target)
+        self._remember_allowed_root(workspace)
+        return {
+            "workspace_dir": str(workspace),
+            "cases": [self._workspace_case_descriptor(case_id, workspace) for case_id in DEMO_CASES],
+            "usage_ja": (
+                "PDFを開いて確認できます。レビューする場合は『case-aをレビューして』"
+                "またはフォルダパスを指定してください。"
+            ),
+            "write_performed": False,
+        }
+
+    def list_demo_cases_with_workspace(self) -> dict[str, Any]:
+        workspace = self.default_workspace_dir.resolve()
+        self._remember_allowed_root(workspace)
+        return {
+            "workspace_dir": str(workspace),
+            "workspace_initialized": _workspace_initialized(workspace),
+            "demo_cases": [self._demo_case_descriptor(case_id, workspace) for case_id in DEMO_CASES],
             "write_performed": False,
         }
 
@@ -274,16 +345,51 @@ class ReviewService:
         normalized_case_id = _normalize_demo_case_id(case_id)
         if normalized_case_id not in DEMO_CASES:
             raise ValueError(f"Unknown demo case: {case_id}")
-        case_dir = self.project_root / "samples" / normalized_case_id
-        return self.review_invoice_packet_from_paths(
+        workspace = self.default_workspace_dir.resolve()
+        case_dir = workspace / normalized_case_id
+        if not case_dir.is_dir():
+            self.setup_demo_workspace()
+        case_dir = workspace / normalized_case_id
+        return self.review_folder(
             tenant_id=tenant_id,
-            invoice_path=str(case_dir / "invoice.pdf"),
-            purchase_order_path=str(case_dir / "purchase_order.pdf"),
-            goods_receipt_path=str(case_dir / "goods_receipt.pdf"),
-            case_label=normalized_case_id,
+            folder_path=str(case_dir),
             target_system=target_system,
             demo_case_id=normalized_case_id,
         )
+
+    def preview_folder(self, *, folder_path: str) -> dict[str, Any]:
+        folder = self._resolve_folder_path(folder_path)
+        return self._preview_folder(folder)
+
+    def review_folder(
+        self,
+        *,
+        folder_path: str,
+        tenant_id: str = "demo-tenant",
+        target_system: str = "generic_ap",
+        demo_case_id: str | None = None,
+    ) -> dict[str, Any]:
+        folder = self._resolve_folder_path(folder_path)
+        preview = self._preview_folder(folder)
+        if not preview["ready_for_review"]:
+            return {**preview, "status": "blocked", "write_performed": False}
+        docs_by_type = {
+            str(item["document_type"]): str(item["path"]) for item in preview["detected_documents"]
+        }
+        result = self.review_invoice_packet_from_paths(
+            tenant_id=tenant_id,
+            invoice_path=docs_by_type["invoice"],
+            purchase_order_path=docs_by_type["purchase_order"],
+            goods_receipt_path=docs_by_type["goods_receipt"],
+            case_label=folder.name,
+            target_system=target_system,
+            demo_case_id=demo_case_id,
+        )
+        return {
+            "folder_path": str(folder),
+            "detected_documents": preview["detected_documents"],
+            **result,
+        }
 
     def review_invoice_packet_from_paths(
         self,
@@ -398,6 +504,143 @@ class ReviewService:
             raise PermissionError(f"File path must stay within demo sample directories: {allowed}")
         return resolved
 
+    def _resolve_workspace_dir(self, workspace_dir: str | None) -> Path:
+        if workspace_dir is None or str(workspace_dir).strip() == "":
+            workspace = self.default_workspace_dir
+        else:
+            workspace = Path(workspace_dir).expanduser()
+            if not workspace.is_absolute():
+                workspace = self.project_root / workspace
+        resolved = workspace.resolve()
+        documents_root = (Path.home() / "Documents").resolve()
+        if not (
+            _is_relative_to(resolved, documents_root)
+            or _is_relative_to(resolved, self.project_root)
+        ):
+            raise PermissionError(
+                "Demo workspace must be under the user's Documents directory or this project."
+            )
+        self._remember_allowed_root(resolved)
+        return resolved
+
+    def _resolve_folder_path(self, folder_path: str) -> Path:
+        folder = Path(folder_path).expanduser()
+        if not folder.is_absolute():
+            folder = self.project_root / folder
+        resolved = folder.resolve()
+        if not any(_is_relative_to(resolved, root) for root in self.allowed_upload_roots):
+            allowed = ", ".join(str(root) for root in self.allowed_upload_roots)
+            raise PermissionError(f"Folder path must stay within demo workspace directories: {allowed}")
+        if not resolved.is_dir():
+            raise FileNotFoundError(f"Folder not found: {folder_path}")
+        return resolved
+
+    def _remember_allowed_root(self, root: Path) -> None:
+        resolved = root.resolve()
+        if not any(existing == resolved for existing in self.allowed_upload_roots):
+            self.allowed_upload_roots.append(resolved)
+
+    def _preview_folder(self, folder: Path) -> dict[str, Any]:
+        pdfs = sorted(folder.glob("*.pdf"))
+        if not pdfs:
+            return _folder_error(
+                folder=folder,
+                error_code="NO_PDF_DOCUMENTS",
+                message_ja="フォルダ内にPDFが見つかりません。",
+            )
+        classified: dict[str, dict[str, Any]] = {}
+        unclassified: list[str] = []
+        errors: list[str] = []
+        for pdf in pdfs:
+            sidecar = pdf.with_suffix(".json")
+            sidecar_type = None
+            fields: dict[str, Any] = {}
+            if sidecar.exists():
+                payload = json.loads(sidecar.read_text("utf-8"))
+                sidecar_type = payload.get("document_type")
+                fields = payload.get("fields", {})
+            filename_type = _classify_by_filename(pdf.name)
+            document_type = sidecar_type or filename_type
+            if document_type and document_type not in DOCUMENT_TYPES:
+                errors.append(f"{pdf.name}: unsupported document_type {document_type}")
+                continue
+            if sidecar_type and filename_type and sidecar_type != filename_type:
+                errors.append(
+                    f"{pdf.name}: sidecar document_type {sidecar_type} conflicts with filename"
+                )
+                continue
+            if not document_type:
+                unclassified.append(pdf.name)
+                continue
+            if not sidecar.exists():
+                errors.append(f"{pdf.name}: missing sidecar JSON")
+                continue
+            if document_type in classified:
+                errors.append(f"{pdf.name}: duplicate {document_type} document")
+                continue
+            classified[document_type] = {
+                "document_type": document_type,
+                "path": str(pdf),
+                "sidecar_path": str(sidecar),
+                "key_fields": _key_fields(document_type, fields),
+            }
+        missing = [document_type for document_type in DOCUMENT_TYPES if document_type not in classified]
+        if unclassified:
+            return _folder_error(
+                folder=folder,
+                error_code="DOCUMENT_CLASSIFICATION_REQUIRED",
+                message_ja="フォルダ内に分類できないPDFがあります。どの帳票種別か確認してください。",
+                unclassified_files=unclassified,
+                detected_documents=classified,
+            )
+        if errors:
+            return _folder_error(
+                folder=folder,
+                error_code="DOCUMENT_VALIDATION_FAILED",
+                message_ja="フォルダ内の帳票またはsidecar JSONを確認してください。",
+                validation_errors=errors,
+                detected_documents=classified,
+            )
+        if missing:
+            return _folder_error(
+                folder=folder,
+                error_code="REQUIRED_DOCUMENTS_MISSING",
+                message_ja="レビューに必要な帳票が不足しています。",
+                missing_document_types=missing,
+                detected_documents=classified,
+            )
+        return {
+            "folder_path": str(folder),
+            "detected_documents": [classified[document_type] for document_type in DOCUMENT_TYPES],
+            "ready_for_review": True,
+            "write_performed": False,
+        }
+
+    def _workspace_case_descriptor(self, case_id: str, workspace: Path) -> dict[str, Any]:
+        case_dir = workspace / case_id
+        return {
+            "case_id": case_id,
+            "case_dir": str(case_dir),
+            "documents": [
+                {
+                    "document_type": document_type,
+                    "path": str(case_dir / f"{document_type}.pdf"),
+                }
+                for document_type in DOCUMENT_TYPES
+            ],
+        }
+
+    def _demo_case_descriptor(self, case_id: str, workspace: Path) -> dict[str, Any]:
+        metadata = DEMO_CASES[case_id]
+        case_dir = workspace / case_id
+        return {
+            "case_id": case_id,
+            "short_aliases": SHORT_ALIASES[case_id],
+            **metadata,
+            "case_dir": str(case_dir),
+            "documents": ["invoice.pdf", "purchase_order.pdf", "goods_receipt.pdf"],
+        }
+
 
 def _is_relative_to(path: Path, root: Path) -> bool:
     try:
@@ -417,8 +660,91 @@ def _normalize_demo_case_id(case_id: str) -> str:
         "c": "case-c-duplicate",
         "case-d": "case-d-vendor-review",
         "d": "case-d-vendor-review",
+        "case-e": "case-e-grn-mismatch",
+        "e": "case-e-grn-mismatch",
+        "case-f": "case-f-tax-review",
+        "f": "case-f-tax-review",
     }
     return aliases.get(case_id.strip().lower(), case_id.strip())
+
+
+def _workspace_initialized(workspace: Path) -> bool:
+    return all((workspace / case_id).is_dir() for case_id in DEMO_CASES)
+
+
+def _classify_by_filename(filename: str) -> str | None:
+    name = filename.lower()
+    stem = Path(name).stem
+    if name in {"invoice.pdf", "請求書.pdf"}:
+        return "invoice"
+    if stem.startswith("invoice_") or stem.endswith("_invoice"):
+        return "invoice"
+    if name in {"purchase_order.pdf", "po.pdf", "発注書.pdf"}:
+        return "purchase_order"
+    if stem.startswith("po_") or stem.endswith("_po"):
+        return "purchase_order"
+    if name in {
+        "goods_receipt.pdf",
+        "grn.pdf",
+        "receipt.pdf",
+        "納品書.pdf",
+        "検収書.pdf",
+        "inspection_report.pdf",
+    }:
+        return "goods_receipt"
+    if stem.startswith("grn_") or stem.endswith("_grn") or stem.endswith("_receipt"):
+        return "goods_receipt"
+    return None
+
+
+def _key_fields(document_type: str, fields: dict[str, Any]) -> dict[str, Any]:
+    if document_type == "invoice":
+        return {
+            "invoice_number": fields.get("invoice_number"),
+            "vendor_id": fields.get("vendor_id"),
+            "po_number": fields.get("po_number"),
+            "total_amount": fields.get("total_amount"),
+        }
+    if document_type == "purchase_order":
+        return {
+            "po_number": fields.get("po_number"),
+            "vendor_id": fields.get("vendor_id"),
+            "total_amount": fields.get("total_amount"),
+            "approved": fields.get("approved"),
+        }
+    return {
+        "receipt_number": fields.get("receipt_number"),
+        "po_number": fields.get("po_number"),
+        "received": fields.get("received"),
+        "received_quantity": fields.get("received_quantity"),
+    }
+
+
+def _folder_error(
+    *,
+    folder: Path,
+    error_code: str,
+    message_ja: str,
+    detected_documents: dict[str, dict[str, Any]] | None = None,
+    unclassified_files: list[str] | None = None,
+    validation_errors: list[str] | None = None,
+    missing_document_types: list[str] | None = None,
+) -> dict[str, Any]:
+    detected = detected_documents or {}
+    return {
+        "folder_path": str(folder),
+        "ready_for_review": False,
+        "error_code": error_code,
+        "message_ja": message_ja,
+        "unclassified_files": unclassified_files or [],
+        "validation_errors": validation_errors or [],
+        "missing_document_types": missing_document_types or [],
+        "detected_documents": {
+            document_type: detected.get(document_type) for document_type in DOCUMENT_TYPES
+        },
+        "allowed_document_types": list(DOCUMENT_TYPES),
+        "write_performed": False,
+    }
 
 
 def _business_packet(

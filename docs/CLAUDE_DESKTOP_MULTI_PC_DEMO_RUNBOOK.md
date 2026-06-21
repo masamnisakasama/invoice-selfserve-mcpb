@@ -60,6 +60,7 @@ make lint
 make typecheck
 make package-ap-mcpb
 make verify-ap-data-boundary
+make verify-mcpb-contents
 make smoke-ap-mcp
 ```
 
@@ -125,8 +126,9 @@ Example prompt:
 
 ```text
 Use the AP Invoice Exception Review MCPB.
-Review bundled demo case-a-pay-ready end-to-end.
-Use review_ap_demo_case, then explain the result and build an approval brief.
+Start the AP Invoice demo.
+Set up the visible local demo workspace, show me the local PDF paths, then review case-a-pay-ready end-to-end.
+Use ap_invoice_setup_demo_workspace, ap_invoice_preview_folder, and ap_invoice_review_folder.
 Confirm that write_performed is false.
 ```
 
@@ -143,6 +145,8 @@ Other expected demo cases:
 case-b-po-mismatch   -> REFER_PO_MISMATCH
 case-c-duplicate     -> REFER_DUPLICATE_REVIEW
 case-d-vendor-review -> REFER_VENDOR_REVIEW
+case-e-grn-mismatch  -> REFER_GRN_MISMATCH
+case-f-tax-review    -> REFER_TAX_REVIEW
 ```
 
 ### Manual Fallback: Windows Claude Desktop Config
@@ -206,6 +210,13 @@ List the available AP Invoice MCP tools.
 Expected tools:
 
 ```text
+ap_invoice_setup_demo_workspace
+ap_invoice_list_demo_cases
+ap_invoice_preview_folder
+ap_invoice_review_folder
+ap_invoice_review_demo_case
+ap_invoice_explain_exception
+ap_invoice_build_approval_brief
 list_ap_demo_cases
 review_ap_demo_case
 review_ap_invoice_packet
@@ -332,6 +343,7 @@ make lint
 make typecheck
 make package-ap-mcpb
 make verify-ap-data-boundary
+make verify-mcpb-contents
 make smoke-ap-mcp
 ```
 
@@ -397,8 +409,9 @@ Example prompt:
 
 ```text
 Use the AP Invoice Exception Review MCPB.
-Review bundled demo case-a-pay-ready end-to-end.
-Use review_ap_demo_case, then explain the result and build an approval brief.
+Start the AP Invoice demo.
+Set up the visible local demo workspace, show me the local PDF paths, then review case-a-pay-ready end-to-end.
+Use ap_invoice_setup_demo_workspace, ap_invoice_preview_folder, and ap_invoice_review_folder.
 Confirm that write_performed is false.
 ```
 
@@ -415,6 +428,8 @@ write_performed -> false
 case-b-po-mismatch   -> REFER_PO_MISMATCH
 case-c-duplicate     -> REFER_DUPLICATE_REVIEW
 case-d-vendor-review -> REFER_VENDOR_REVIEW
+case-e-grn-mismatch  -> REFER_GRN_MISMATCH
+case-f-tax-review    -> REFER_TAX_REVIEW
 ```
 
 ### 手動fallback: Windows Claude Desktop Config
@@ -478,6 +493,13 @@ List the available AP Invoice MCP tools.
 期待されるtools:
 
 ```text
+ap_invoice_setup_demo_workspace
+ap_invoice_list_demo_cases
+ap_invoice_preview_folder
+ap_invoice_review_folder
+ap_invoice_review_demo_case
+ap_invoice_explain_exception
+ap_invoice_build_approval_brief
 list_ap_demo_cases
 review_ap_demo_case
 review_ap_invoice_packet

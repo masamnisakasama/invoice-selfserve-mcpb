@@ -12,6 +12,8 @@ def test_golden_decision_artifacts_match_expected_case_results(tmp_path: Path) -
         "case-b-po-mismatch",
         "case-c-duplicate",
         "case-d-vendor-review",
+        "case-e-grn-mismatch",
+        "case-f-tax-review",
     ):
         expected = load_expected(case_name)
         reviewed = review_case(case_name, tmp_path / "artifacts" / case_name)
@@ -39,6 +41,8 @@ def test_v2_expected_decision_snapshots(tmp_path: Path) -> None:
         "case-b-po-mismatch",
         "case-c-duplicate",
         "case-d-vendor-review",
+        "case-e-grn-mismatch",
+        "case-f-tax-review",
     ):
         expected_path = Path(__file__).parent / case_name / "expected_decision.json"
         expected = json.loads(expected_path.read_text("utf-8"))

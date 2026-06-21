@@ -54,9 +54,11 @@ def invoice_fields(
     vendor_id: str = "V-1001",
     invoice_date: str = "2026-06-20",
     quantity: int = 100,
+    subtotal_amount: int | None = None,
+    tax_amount: int | None = None,
 ) -> dict[str, Any]:
-    subtotal = round(total_amount / 1.1)
-    tax = total_amount - subtotal
+    subtotal = subtotal_amount if subtotal_amount is not None else round(total_amount / 1.1)
+    tax = tax_amount if tax_amount is not None else total_amount - subtotal
     due_date = (date.fromisoformat(invoice_date) + timedelta(days=30)).isoformat()
     return {
         "invoice_number": invoice_number,
@@ -134,6 +136,34 @@ CASES: dict[str, dict[str, Any]] = {
         "purchase_order": po_fields(po_number="PO-2026-0004", total_amount=110000),
         "goods_receipt": grn_fields(receipt_number="GRN-2026-0004", po_number="PO-2026-0004"),
         "expected": {"recommendation": "REFER_VENDOR_REVIEW", "rule_ids": ["AP-VENDOR-002"]},
+    },
+    "case-e-grn-mismatch": {
+        "invoice": invoice_fields(
+            invoice_number="INV-2026-0011",
+            po_number="PO-2026-0005",
+            total_amount=110000,
+            invoice_date="2026-07-15",
+        ),
+        "purchase_order": po_fields(po_number="PO-2026-0005", total_amount=110000),
+        "goods_receipt": grn_fields(
+            receipt_number="GRN-2026-0005",
+            po_number="PO-2026-0005",
+            quantity=50,
+        ),
+        "expected": {"recommendation": "REFER_GRN_MISMATCH", "rule_ids": ["AP-GRN-001"]},
+    },
+    "case-f-tax-review": {
+        "invoice": invoice_fields(
+            invoice_number="INV-2026-0012",
+            po_number="PO-2026-0006",
+            total_amount=110000,
+            invoice_date="2026-07-15",
+            subtotal_amount=100000,
+            tax_amount=9000,
+        ),
+        "purchase_order": po_fields(po_number="PO-2026-0006", total_amount=110000),
+        "goods_receipt": grn_fields(receipt_number="GRN-2026-0006", po_number="PO-2026-0006"),
+        "expected": {"recommendation": "REFER_TAX_REVIEW", "rule_ids": ["AP-TAX-001"]},
     },
 }
 

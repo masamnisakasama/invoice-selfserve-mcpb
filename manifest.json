@@ -1,10 +1,10 @@
 {
   "manifest_version": "0.4",
   "name": "ap-invoice-review",
-  "display_name": "AP Invoice Exception Review",
-  "version": "0.1.0",
+  "display_name": "AP Invoice Review — Folder Demo",
+  "version": "0.4.0",
   "description": "Self-serve MCPB for deterministic AP invoice exception review.",
-  "long_description": "Review AP invoice packets with deterministic vendor master matching, PO matching, GRN matching, duplicate checks, tax checks, audit artifacts, and draft-only ERP/SaaS payload generation.",
+  "long_description": "Review AP invoice folders by detecting invoice, purchase order, and goods receipt PDFs from a visible local folder. Includes bundled demo PDFs exported to Documents/APInvoiceDemo. Never uses Airtable, Google Drive, or external ERP/SaaS writes.",
   "author": {
     "name": "masamnisakasama"
   },
@@ -22,24 +22,52 @@
   },
   "tools": [
     {
-      "name": "list_ap_demo_cases",
-      "description": "List bundled AP invoice demo cases and explain their business value."
+      "name": "ap_invoice_setup_demo_workspace",
+      "description": "Export bundled demo PDFs to a visible local Documents/APInvoiceDemo folder."
     },
     {
-      "name": "review_ap_demo_case",
-      "description": "Run a bundled AP invoice demo case end-to-end and return a business decision packet."
+      "name": "ap_invoice_list_demo_cases",
+      "description": "List visible local AP invoice demo cases, folders, PDFs, and expected outcomes."
     },
     {
-      "name": "review_ap_invoice_packet",
-      "description": "Review an invoice, purchase order, and goods receipt packet end-to-end."
+      "name": "ap_invoice_preview_folder",
+      "description": "Preview a local folder and classify invoice, purchase order, and goods receipt PDFs before review."
     },
     {
-      "name": "explain_ap_exception",
+      "name": "ap_invoice_review_folder",
+      "description": "Review a visible local AP invoice folder end-to-end without external writes."
+    },
+    {
+      "name": "ap_invoice_review_demo_case",
+      "description": "Review a bundled demo case from the visible APInvoiceDemo workspace."
+    },
+    {
+      "name": "ap_invoice_explain_exception",
       "description": "Explain AP invoice review exceptions with evidence, rule IDs, and next actions."
     },
     {
+      "name": "ap_invoice_build_approval_brief",
+      "description": "Build a concise AP invoice approval or hold brief for an approver."
+    },
+    {
+      "name": "list_ap_demo_cases",
+      "description": "Compatibility: list bundled AP invoice demo cases and explain their business value."
+    },
+    {
+      "name": "review_ap_demo_case",
+      "description": "Compatibility: run a bundled AP invoice demo case end-to-end and return a business decision packet."
+    },
+    {
+      "name": "review_ap_invoice_packet",
+      "description": "Compatibility: review an invoice, purchase order, and goods receipt packet end-to-end."
+    },
+    {
+      "name": "explain_ap_exception",
+      "description": "Compatibility: explain AP invoice review exceptions with evidence, rule IDs, and next actions."
+    },
+    {
       "name": "build_ap_approval_brief",
-      "description": "Build a concise approval or hold brief for an AP approver."
+      "description": "Compatibility: build a concise approval or hold brief for an AP approver."
     },
     {
       "name": "create_ap_review_case",

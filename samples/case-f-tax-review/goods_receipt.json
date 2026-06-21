@@ -1,0 +1,10 @@
+{
+  "document_type": "goods_receipt",
+  "fields": {
+    "receipt_number": "GRN-2026-0006",
+    "po_number": "PO-2026-0006",
+    "received": true,
+    "received_quantity": 100,
+    "receipt_date": "2026-06-18"
+  }
+}

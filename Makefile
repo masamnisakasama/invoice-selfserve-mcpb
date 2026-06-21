@@ -5,7 +5,7 @@ PIP := $(VENV)/bin/pip
 
 .PHONY: venv install lint typecheck test generate-ap-samples test-ap-rules \
         test-ap-fixtures test-ap-golden package-ap-mcpb verify-ap-data-boundary \
-        smoke-ap-mcp dev-mcp
+        verify-mcpb-contents smoke-ap-mcp dev-mcp
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -40,6 +40,9 @@ package-ap-mcpb:
 
 verify-ap-data-boundary:
 	$(PY) scripts/verify_ap_data_boundary.py dist/ap-invoice-review.mcpb
+
+verify-mcpb-contents:
+	$(PY) scripts/verify_mcpb_contents.py dist/ap-invoice-review.mcpb
 
 smoke-ap-mcp:
 	$(PY) scripts/smoke_ap_mcp.py

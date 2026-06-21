@@ -21,6 +21,67 @@ mcp = FastMCP("AP Invoice Exception Review MCPB")
 
 
 @mcp.tool()
+def ap_invoice_setup_demo_workspace(
+    workspace_dir: str | None = None,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Export bundled demo PDFs to a visible local APInvoiceDemo workspace."""
+    return service.setup_demo_workspace(workspace_dir=workspace_dir, overwrite=overwrite)
+
+
+@mcp.tool()
+def ap_invoice_list_demo_cases() -> dict[str, Any]:
+    """List visible local AP invoice demo cases and expected outcomes."""
+    return service.list_demo_cases_with_workspace()
+
+
+@mcp.tool()
+def ap_invoice_preview_folder(folder_path: str) -> dict[str, Any]:
+    """Preview and classify invoice, PO, and goods receipt PDFs in a local folder."""
+    return service.preview_folder(folder_path=folder_path)
+
+
+@mcp.tool()
+def ap_invoice_review_folder(
+    folder_path: str,
+    tenant_id: str = "demo-tenant",
+    target_system: str = "generic_ap",
+) -> dict[str, Any]:
+    """Review a visible local folder containing invoice, PO, and goods receipt PDFs."""
+    return service.review_folder(
+        folder_path=folder_path,
+        tenant_id=tenant_id,
+        target_system=target_system,
+    )
+
+
+@mcp.tool()
+def ap_invoice_review_demo_case(
+    case_id: str,
+    tenant_id: str = "demo-tenant",
+    target_system: str = "generic_ap",
+) -> dict[str, Any]:
+    """Review a bundled demo case from the visible APInvoiceDemo workspace."""
+    return service.review_demo_case(
+        case_id=case_id,
+        tenant_id=tenant_id,
+        target_system=target_system,
+    )
+
+
+@mcp.tool()
+def ap_invoice_explain_exception(job_id: str, audience: str = "ap_operator") -> dict[str, Any]:
+    """Explain AP invoice review exceptions with evidence, rule IDs, and next actions."""
+    return service.explain_exception(job_id=job_id, audience=audience)
+
+
+@mcp.tool()
+def ap_invoice_build_approval_brief(job_id: str) -> dict[str, Any]:
+    """Build a concise AP invoice approval or hold brief for an approver."""
+    return service.build_approval_brief(job_id=job_id)
+
+
+@mcp.tool()
 def list_ap_demo_cases() -> dict[str, Any]:
     """List bundled AP invoice demo cases and explain their business value."""
     return service.list_demo_cases()
@@ -130,9 +191,12 @@ def build_erp_draft_payload(
 )
 def ap_demo() -> str:
     return (
-        "AP Invoice demoを開始します。外部connector registryは検索しないでください。"
-        "インストール済みのAP Invoice MCP toolsを使い、まずlist_ap_demo_casesを呼んで"
-        "case-aからcase-dを業務価値つきで表示してください。"
+        "AP Invoice demoを開始します。Airtable、Google Drive、外部connector registryは"
+        "検索しないでください。まずap_invoice_setup_demo_workspaceを呼び、"
+        "Documents/APInvoiceDemoへサンプルPDFを展開してください。次に"
+        "ap_invoice_list_demo_casesでcase-aからcase-fを業務価値つきで表示してください。"
+        "レビュー前に可視PDFパスを表示し、外部ERP/SaaSへの書き込みは行わないことを"
+        "明示してください。"
     )
 
 
@@ -144,13 +208,14 @@ def ap_review(case_id: str = "") -> str:
     if case_id:
         return (
             f"{case_id} をAP請求書packetとしてレビューします。"
-            "review_ap_demo_caseを呼び、判定・例外理由・根拠・次アクション・"
+            "ap_invoice_review_demo_caseを呼び、判定・例外理由・根拠・次アクション・"
             "draft payload summary・write_performed=falseを日本語で表示してください。"
         )
     return (
-        "AP Invoice reviewを実行します。case指定がなければlist_ap_demo_casesを呼び、"
-        "case指定があればreview_ap_demo_caseを優先してください。"
-        "3PDFパスがある場合のみreview_ap_invoice_packetを使ってください。"
+        "AP Invoice reviewを実行します。フォルダパスがあればap_invoice_review_folderを"
+        "呼んでください。case指定があればap_invoice_review_demo_caseを優先してください。"
+        "何も指定がなければap_invoice_setup_demo_workspaceとap_invoice_list_demo_casesを"
+        "呼んでください。Airtableや外部registryは検索しないでください。"
     )
 
 
@@ -160,7 +225,7 @@ def ap_review(case_id: str = "") -> str:
 )
 def ap_explain(job_id: str = "") -> str:
     return (
-        f"job_id={job_id} のAP例外理由を説明します。explain_ap_exceptionを呼び、"
+        f"job_id={job_id} のAP例外理由を説明します。ap_invoice_explain_exceptionを呼び、"
         "根拠・rule_id・次アクションを日本語で示してください。"
     )
 
@@ -172,8 +237,8 @@ def ap_explain(job_id: str = "") -> str:
 def ap_approval_brief(job_id: str = "") -> str:
     return (
         f"job_id={job_id} の承認者向け判断パケットを作ります。"
-        "build_ap_approval_briefを呼び、支払判断・リスク・根拠・write_performed=falseを"
-        "短くまとめてください。"
+        "ap_invoice_build_approval_briefを呼び、支払判断・リスク・根拠・"
+        "write_performed=falseを短くまとめてください。"
     )
 
 

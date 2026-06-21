@@ -15,6 +15,7 @@ make generate-ap-samples
 make test
 make package-ap-mcpb
 make verify-ap-data-boundary
+make verify-mcpb-contents
 make smoke-ap-mcp
 npx -y @anthropic-ai/mcpb validate manifest.json
 ```
@@ -32,6 +33,8 @@ case-a-pay-ready       PAY_READY_CANDIDATE
 case-b-po-mismatch     REFER_PO_MISMATCH
 case-c-duplicate       REFER_DUPLICATE_REVIEW
 case-d-vendor-review   REFER_VENDOR_REVIEW
+case-e-grn-mismatch    REFER_GRN_MISMATCH
+case-f-tax-review      REFER_TAX_REVIEW
 ```
 
 ## Package
@@ -53,6 +56,18 @@ review_ap_demo_case
 review_ap_invoice_packet
 explain_ap_exception
 build_ap_approval_brief
+```
+
+Customer-ready folder tools:
+
+```text
+ap_invoice_setup_demo_workspace
+ap_invoice_list_demo_cases
+ap_invoice_preview_folder
+ap_invoice_review_folder
+ap_invoice_review_demo_case
+ap_invoice_explain_exception
+ap_invoice_build_approval_brief
 ```
 
 Advanced/debug tools:

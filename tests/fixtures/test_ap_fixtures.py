@@ -12,6 +12,8 @@ CASES = [
     "case-b-po-mismatch",
     "case-c-duplicate",
     "case-d-vendor-review",
+    "case-e-grn-mismatch",
+    "case-f-tax-review",
 ]
 
 

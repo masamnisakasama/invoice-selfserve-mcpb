@@ -1,0 +1,8 @@
+{
+  "case": "case-e-grn-mismatch",
+  "recommendation": "REFER_GRN_MISMATCH",
+  "rule_ids": [
+    "AP-GRN-001"
+  ],
+  "write_performed": false
+}

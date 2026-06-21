@@ -9,6 +9,13 @@ def test_mcp_tools_list_is_stable_and_schema_backed() -> None:
     tools = asyncio.run(mcp.list_tools())
     by_name = {tool.name: tool for tool in tools}
     assert sorted(by_name) == [
+        "ap_invoice_build_approval_brief",
+        "ap_invoice_explain_exception",
+        "ap_invoice_list_demo_cases",
+        "ap_invoice_preview_folder",
+        "ap_invoice_review_demo_case",
+        "ap_invoice_review_folder",
+        "ap_invoice_setup_demo_workspace",
         "build_ap_approval_brief",
         "build_erp_draft_payload",
         "create_ap_review_case",
@@ -24,6 +31,8 @@ def test_mcp_tools_list_is_stable_and_schema_backed() -> None:
         assert tool.inputSchema["type"] == "object"
         assert "properties" in tool.inputSchema
 
+    assert by_name["ap_invoice_review_folder"].inputSchema["required"] == ["folder_path"]
+    assert by_name["ap_invoice_preview_folder"].inputSchema["required"] == ["folder_path"]
     assert by_name["review_ap_demo_case"].inputSchema["required"] == ["case_id"]
     assert by_name["review_ap_invoice_packet"].inputSchema["required"] == [
         "tenant_id",

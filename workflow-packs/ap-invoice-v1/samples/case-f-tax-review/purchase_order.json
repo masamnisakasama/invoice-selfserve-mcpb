@@ -1,0 +1,20 @@
+{
+  "document_type": "purchase_order",
+  "fields": {
+    "po_number": "PO-2026-0006",
+    "vendor_id": "V-1001",
+    "currency": "JPY",
+    "total_amount": 110000,
+    "approved": true,
+    "remaining_balance": 110000,
+    "line_items": [
+      {
+        "description": "Office supplies bundle",
+        "quantity": 100,
+        "unit_price": 1000.0,
+        "amount": 100000,
+        "tax_code": "JP10"
+      }
+    ]
+  }
+}

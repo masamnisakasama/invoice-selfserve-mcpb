@@ -15,6 +15,7 @@ __pycache__/
 artifacts/
 code-review-report-*.pdf
 samples/tmp-security-*/
+.tmp-workspaces/
 
 # Keep the demo MCPB package, ignore other ad-hoc dist outputs.
 dist/*
