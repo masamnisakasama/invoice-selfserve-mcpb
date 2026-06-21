@@ -31,71 +31,71 @@
     },
     {
       "name": "ap_invoice_setup_demo_workspace",
-      "description": "Export bundled demo PDFs to a visible local Documents/APInvoiceDemo folder."
+      "description": "Pre-Go blocked: legacy sidecar demo export is disabled in the Claude OCR gate package."
     },
     {
       "name": "ap_invoice_list_demo_cases",
-      "description": "List visible local AP invoice demo cases, folders, PDFs, and expected outcomes."
+      "description": "Pre-Go blocked: legacy demo case listing is disabled until no-sidecar OCR review is implemented."
     },
     {
       "name": "ap_invoice_preview_folder",
-      "description": "Preview a local folder and classify invoice, purchase order, and goods receipt PDFs before review."
+      "description": "Pre-Go blocked: folder preview would expose legacy sidecar facts and is disabled."
     },
     {
       "name": "ap_invoice_review_folder",
-      "description": "Review a visible local AP invoice folder end-to-end without external writes."
+      "description": "Pre-Go blocked: AP review is disabled until Claude OCR Go and no-sidecar implementation."
     },
     {
       "name": "ap_invoice_review_demo_case",
-      "description": "Review a bundled demo case from the visible APInvoiceDemo workspace."
+      "description": "Pre-Go blocked: legacy sidecar demo review is disabled in the Claude OCR gate package."
     },
     {
       "name": "ap_invoice_explain_exception",
-      "description": "Explain AP invoice review exceptions with evidence, rule IDs, and next actions."
+      "description": "Pre-Go blocked: exception explanation is disabled until OCR review results exist."
     },
     {
       "name": "ap_invoice_build_approval_brief",
-      "description": "Build a concise AP invoice approval or hold brief for an approver."
+      "description": "Pre-Go blocked: approval briefs are disabled until OCR review results exist."
     },
     {
       "name": "list_ap_demo_cases",
-      "description": "Compatibility: list bundled AP invoice demo cases and explain their business value."
+      "description": "Pre-Go blocked compatibility tool: legacy sidecar demo listing is disabled."
     },
     {
       "name": "review_ap_demo_case",
-      "description": "Compatibility: run a bundled AP invoice demo case end-to-end and return a business decision packet."
+      "description": "Pre-Go blocked compatibility tool: legacy sidecar review is disabled."
     },
     {
       "name": "review_ap_invoice_packet",
-      "description": "Compatibility: review an invoice, purchase order, and goods receipt packet end-to-end."
+      "description": "Pre-Go blocked compatibility tool: packet review is disabled until Claude OCR implementation."
     },
     {
       "name": "explain_ap_exception",
-      "description": "Compatibility: explain AP invoice review exceptions with evidence, rule IDs, and next actions."
+      "description": "Pre-Go blocked compatibility tool: explanations require OCR review results."
     },
     {
       "name": "build_ap_approval_brief",
-      "description": "Compatibility: build a concise approval or hold brief for an AP approver."
+      "description": "Pre-Go blocked compatibility tool: approval briefs require OCR review results."
     },
     {
       "name": "create_ap_review_case",
-      "description": "Advanced: create an AP invoice review case and return required upload slots."
+      "description": "Pre-Go blocked advanced tool: review cases are disabled in the OCR gate package."
     },
     {
       "name": "upload_ap_document",
-      "description": "Advanced: attach a bundled demo invoice, purchase order, or goods receipt PDF to a case."
+      "description": "Pre-Go blocked advanced tool: document upload is disabled in the OCR gate package."
     },
     {
       "name": "start_ap_invoice_review",
-      "description": "Advanced: run deterministic AP 3-way match, duplicate, vendor, and tax checks."
+      "description": "Pre-Go blocked advanced tool: deterministic sidecar review is disabled."
     },
     {
       "name": "get_ap_invoice_review_result",
-      "description": "Advanced: return a completed AP review decision packet with evidence and artifacts."
+      "description": "Pre-Go blocked advanced tool: review results require OCR review implementation."
     },
     {
       "name": "build_erp_draft_payload",
-      "description": "Advanced: build a draft-only ERP/SaaS payload. External writes are never performed."
+      "description": "Pre-Go blocked advanced tool: draft payloads require OCR review implementation."
     }
   ],
   "keywords": ["accounts-payable", "invoice", "mcp", "mcpb", "workflow-pack"],

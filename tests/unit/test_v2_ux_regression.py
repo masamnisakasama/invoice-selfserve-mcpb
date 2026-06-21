@@ -24,8 +24,8 @@ def test_skill_contains_v2_ux_guardrails() -> None:
     assert "Do not use Google Drive unless the user explicitly asks for Google Drive" in skill
     assert "ap_invoice_ocr_smoke_test" in skill
     assert "ap_invoice_submit_ocr_smoke_test_result" in skill
-    assert "If the user gives a folder path, call `ap_invoice_review_folder`" in skill
-    assert "Show visible local PDF paths before review" in skill
+    assert "Do not call legacy sidecar review tools" in skill
+    assert "After `OCR_SMOKE_TEST_PASSED`, stop" in skill
     assert "Prefer high-level tools" in skill
     for slash in ("/ap-review", "/ap-demo", "/ap-explain", "/ap-approval-brief"):
         assert slash in skill
@@ -55,8 +55,8 @@ def test_high_level_tool_descriptions_are_ux_focused() -> None:
     manifest = json.loads((PROJECT_ROOT / "manifest.json").read_text("utf-8"))
     descriptions = {tool["name"]: tool["description"] for tool in manifest["tools"]}
 
-    assert "visible local" in descriptions["ap_invoice_setup_demo_workspace"]
-    assert "visible local" in descriptions["ap_invoice_list_demo_cases"]
-    assert "local folder" in descriptions["ap_invoice_preview_folder"]
-    assert "visible local" in descriptions["ap_invoice_review_folder"]
-    assert descriptions["create_ap_review_case"].startswith("Advanced:")
+    assert "Pre-Go blocked" in descriptions["ap_invoice_setup_demo_workspace"]
+    assert "Pre-Go blocked" in descriptions["ap_invoice_list_demo_cases"]
+    assert "Pre-Go blocked" in descriptions["ap_invoice_preview_folder"]
+    assert "Pre-Go blocked" in descriptions["ap_invoice_review_folder"]
+    assert descriptions["create_ap_review_case"].startswith("Pre-Go blocked")

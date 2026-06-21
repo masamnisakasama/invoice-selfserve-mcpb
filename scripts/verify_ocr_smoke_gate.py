@@ -6,7 +6,7 @@ import json
 import sys
 import zipfile
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from mcp.types import CallToolResult, ImageContent, TextContent
 
@@ -105,7 +105,48 @@ async def _check_live_tool_result() -> list[str]:
             failures.append(f"answer token leaked in tool text: {token}")
         if token in structured_payload:
             failures.append(f"answer token leaked in structuredContent: {token}")
+    failures.extend(await _check_legacy_tools_are_blocked())
     return failures
+
+
+async def _check_legacy_tools_are_blocked() -> list[str]:
+    failures: list[str] = []
+    legacy_calls = {
+        "ap_invoice_setup_demo_workspace": {},
+        "ap_invoice_review_demo_case": {"case_id": "case-a"},
+        "review_ap_invoice_packet": {
+            "tenant_id": "demo-tenant",
+            "invoice_path": "samples/case-a-pay-ready/invoice.pdf",
+            "purchase_order_path": "samples/case-a-pay-ready/purchase_order.pdf",
+            "goods_receipt_path": "samples/case-a-pay-ready/goods_receipt.pdf",
+        },
+    }
+    for tool_name, arguments in legacy_calls.items():
+        result = await mcp.call_tool(tool_name, arguments)
+        payload = _tool_payload(result)
+        if payload.get("status") != "blocked":
+            failures.append(f"{tool_name} must be blocked in the OCR gate package")
+        if payload.get("error_code") != "CLAUDE_OCR_SMOKE_GO_REQUIRED":
+            failures.append(f"{tool_name} must return CLAUDE_OCR_SMOKE_GO_REQUIRED")
+    return failures
+
+
+def _tool_payload(result: object) -> dict[str, Any]:
+    if isinstance(result, CallToolResult):
+        return _first_text_json_payload(result)
+    if isinstance(result, tuple) and len(result) >= 2 and isinstance(result[1], dict):
+        return result[1]
+    return {}
+
+
+def _first_text_json_payload(result: CallToolResult) -> dict[str, Any]:
+    if not result.content or not isinstance(result.content[0], TextContent):
+        return {}
+    try:
+        payload = json.loads(result.content[0].text)
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 if __name__ == "__main__":

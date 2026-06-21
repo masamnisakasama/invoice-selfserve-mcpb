@@ -21,6 +21,28 @@ service = ReviewService(project_root=_default_project_root())
 mcp = FastMCP("AP Invoice Exception Review MCPB")
 
 
+def _pre_go_tool_blocked(tool_name: str) -> dict[str, Any]:
+    return {
+        "status": "blocked",
+        "error_code": "CLAUDE_OCR_SMOKE_GO_REQUIRED",
+        "tool_name": tool_name,
+        "message_ja": (
+            "このClaude OCR版MCPBはMilestone 0のGo/No-Go確認段階です。"
+            "旧sidecar JSONベースのAPレビューを実行するとOCRデモとして誤認されるため、"
+            "レビュー系toolは実機Go確認とno-sidecar実装が完了するまで停止しています。"
+        ),
+        "next_action_ja": (
+            "ap_invoice_ocr_smoke_testを実行し、Claudeが返却画像をOCRして"
+            "ap_invoice_submit_ocr_smoke_test_resultへsubmitできるか確認してください。"
+        ),
+        "allowed_tools_now": [
+            "ap_invoice_ocr_smoke_test",
+            "ap_invoice_submit_ocr_smoke_test_result",
+        ],
+        "write_performed": False,
+    }
+
+
 @mcp.tool()
 def ap_invoice_ocr_smoke_test() -> CallToolResult:
     """Return a fixed invoice image as MCP image content for Claude OCR Go/No-Go."""
@@ -54,19 +76,19 @@ def ap_invoice_setup_demo_workspace(
     overwrite: bool = False,
 ) -> dict[str, Any]:
     """Export bundled demo PDFs to a visible local APInvoiceDemo workspace."""
-    return service.setup_demo_workspace(workspace_dir=workspace_dir, overwrite=overwrite)
+    return _pre_go_tool_blocked("ap_invoice_setup_demo_workspace")
 
 
 @mcp.tool()
 def ap_invoice_list_demo_cases() -> dict[str, Any]:
     """List visible local AP invoice demo cases and expected outcomes."""
-    return service.list_demo_cases_with_workspace()
+    return _pre_go_tool_blocked("ap_invoice_list_demo_cases")
 
 
 @mcp.tool()
 def ap_invoice_preview_folder(folder_path: str) -> dict[str, Any]:
     """Preview and classify invoice, PO, and goods receipt PDFs in a local folder."""
-    return service.preview_folder(folder_path=folder_path)
+    return _pre_go_tool_blocked("ap_invoice_preview_folder")
 
 
 @mcp.tool()
@@ -76,11 +98,7 @@ def ap_invoice_review_folder(
     target_system: str = "generic_ap",
 ) -> dict[str, Any]:
     """Review a visible local folder containing invoice, PO, and goods receipt PDFs."""
-    return service.review_folder(
-        folder_path=folder_path,
-        tenant_id=tenant_id,
-        target_system=target_system,
-    )
+    return _pre_go_tool_blocked("ap_invoice_review_folder")
 
 
 @mcp.tool()
@@ -90,29 +108,25 @@ def ap_invoice_review_demo_case(
     target_system: str = "generic_ap",
 ) -> dict[str, Any]:
     """Review a bundled demo case from the visible APInvoiceDemo workspace."""
-    return service.review_demo_case(
-        case_id=case_id,
-        tenant_id=tenant_id,
-        target_system=target_system,
-    )
+    return _pre_go_tool_blocked("ap_invoice_review_demo_case")
 
 
 @mcp.tool()
 def ap_invoice_explain_exception(job_id: str, audience: str = "ap_operator") -> dict[str, Any]:
     """Explain AP invoice review exceptions with evidence, rule IDs, and next actions."""
-    return service.explain_exception(job_id=job_id, audience=audience)
+    return _pre_go_tool_blocked("ap_invoice_explain_exception")
 
 
 @mcp.tool()
 def ap_invoice_build_approval_brief(job_id: str) -> dict[str, Any]:
     """Build a concise AP invoice approval or hold brief for an approver."""
-    return service.build_approval_brief(job_id=job_id)
+    return _pre_go_tool_blocked("ap_invoice_build_approval_brief")
 
 
 @mcp.tool()
 def list_ap_demo_cases() -> dict[str, Any]:
     """List bundled AP invoice demo cases and explain their business value."""
-    return service.list_demo_cases()
+    return _pre_go_tool_blocked("list_ap_demo_cases")
 
 
 @mcp.tool()
@@ -122,11 +136,7 @@ def review_ap_demo_case(
     target_system: str = "generic_ap",
 ) -> dict[str, Any]:
     """Run a bundled AP invoice demo case end-to-end and return a decision packet."""
-    return service.review_demo_case(
-        case_id=case_id,
-        tenant_id=tenant_id,
-        target_system=target_system,
-    )
+    return _pre_go_tool_blocked("review_ap_demo_case")
 
 
 @mcp.tool()
@@ -139,26 +149,19 @@ def review_ap_invoice_packet(
     target_system: str = "generic_ap",
 ) -> dict[str, Any]:
     """Review an invoice, purchase order, and goods receipt packet end-to-end."""
-    return service.review_invoice_packet_from_paths(
-        tenant_id=tenant_id,
-        invoice_path=invoice_path,
-        purchase_order_path=purchase_order_path,
-        goods_receipt_path=goods_receipt_path,
-        case_label=case_label,
-        target_system=target_system,
-    )
+    return _pre_go_tool_blocked("review_ap_invoice_packet")
 
 
 @mcp.tool()
 def explain_ap_exception(job_id: str, audience: str = "ap_operator") -> dict[str, Any]:
     """Explain AP review exceptions with evidence, rule IDs, and next actions."""
-    return service.explain_exception(job_id=job_id, audience=audience)
+    return _pre_go_tool_blocked("explain_ap_exception")
 
 
 @mcp.tool()
 def build_ap_approval_brief(job_id: str) -> dict[str, Any]:
     """Build a concise AP approval or hold brief for an approver."""
-    return service.build_approval_brief(job_id=job_id)
+    return _pre_go_tool_blocked("build_ap_approval_brief")
 
 
 @mcp.tool()
@@ -169,34 +172,25 @@ def create_ap_review_case(
     case_label: str = "",
 ) -> dict[str, Any]:
     """Create an AP invoice review case and return required upload slots."""
-    return service.create_case(
-        tenant_id=tenant_id,
-        workflow_pack=workflow_pack,
-        ruleset_version=ruleset_version,
-        case_label=case_label,
-    )
+    return _pre_go_tool_blocked("create_ap_review_case")
 
 
 @mcp.tool()
 def upload_ap_document(case_id: str, document_type: str, file_path: str) -> dict[str, Any]:
     """Attach a local invoice, purchase order, or goods receipt PDF to a case."""
-    return service.upload_document(
-        case_id=case_id,
-        document_type=document_type,
-        file_path=file_path,
-    )
+    return _pre_go_tool_blocked("upload_ap_document")
 
 
 @mcp.tool()
 def start_ap_invoice_review(case_id: str) -> dict[str, Any]:
     """Run deterministic AP 3-way match, duplicate, vendor, and tax checks."""
-    return service.start_review(case_id=case_id)
+    return _pre_go_tool_blocked("start_ap_invoice_review")
 
 
 @mcp.tool()
 def get_ap_invoice_review_result(job_id: str) -> dict[str, Any]:
     """Return a completed AP review decision packet with evidence and artifacts."""
-    return service.get_review_result(job_id=job_id)
+    return _pre_go_tool_blocked("get_ap_invoice_review_result")
 
 
 @mcp.tool()
@@ -206,11 +200,7 @@ def build_erp_draft_payload(
     mode: str = "draft_only",
 ) -> dict[str, Any]:
     """Build a draft-only ERP/SaaS payload. External writes are never performed."""
-    return service.build_draft_payload(
-        case_id=case_id,
-        target_system=target_system,
-        mode=mode,
-    )
+    return _pre_go_tool_blocked("build_erp_draft_payload")
 
 
 @mcp.prompt(
@@ -222,12 +212,9 @@ def ap_demo() -> str:
         "AP Invoice demoを開始します。vNextのClaude OCR版では、まず"
         "ap_invoice_ocr_smoke_testを呼び、返された画像をClaude vision/OCRで読み、"
         "ap_invoice_submit_ocr_smoke_test_resultへinvoice_numberとtotal_amountを"
-        "submitしてください。Airtable、Google Drive、外部connector registryは"
-        "検索しないでください。Milestone 0通過後にap_invoice_setup_demo_workspaceを呼び、"
-        "Documents/APInvoiceDemoへサンプルPDFを展開してください。次に"
-        "ap_invoice_list_demo_casesでcase-aからcase-fを業務価値つきで表示してください。"
-        "レビュー前に可視PDFパスを表示し、外部ERP/SaaSへの書き込みは行わないことを"
-        "明示してください。"
+        "submitしてください。OCR_SMOKE_TEST_PASSEDが出たらMilestone 0通過として"
+        "ユーザーへ報告し、APレビュー本体はno-sidecar実装が入るまで進めないでください。"
+        "Airtable、Google Drive、外部connector registryは検索しないでください。"
     )
 
 
@@ -239,19 +226,18 @@ def ap_review(case_id: str = "") -> str:
     if case_id:
         return (
             f"{case_id} をAP請求書packetとしてレビューします。"
-            "Claude OCR smoke testの実機Goが未確認なら先にap_invoice_ocr_smoke_testを"
-            "実行してください。Go確認済みの場合のみap_invoice_review_demo_caseを呼び、"
-            "判定・例外理由・根拠・次アクション・"
-            "draft payload summary・write_performed=falseを日本語で表示してください。"
+            "このClaude OCR版では旧sidecarレビューは禁止です。まず"
+            "ap_invoice_ocr_smoke_testを実行し、返却画像をOCRして"
+            "ap_invoice_submit_ocr_smoke_test_resultへsubmitしてください。"
+            "OCR_SMOKE_TEST_PASSED後も、no-sidecar本実装が入るまでは"
+            "APレビュー本体へ進めないでください。"
         )
     return (
-        "AP Invoice reviewを実行します。Claude OCR smoke testの実機Goが未確認なら先に"
-        "ap_invoice_ocr_smoke_testを呼び、返された画像をOCRして"
-        "ap_invoice_submit_ocr_smoke_test_resultへsubmitしてください。Go確認済みで"
-        "フォルダパスがあればap_invoice_review_folderを呼んでください。case指定があれば"
-        "ap_invoice_review_demo_caseを優先してください。何も指定がなければ"
-        "ap_invoice_setup_demo_workspaceとap_invoice_list_demo_casesを呼んでください。"
-        "Airtableや外部registryは検索しないでください。"
+        "AP Invoice reviewを実行します。このClaude OCR版では旧sidecarレビューは禁止です。"
+        "まずap_invoice_ocr_smoke_testを呼び、返された画像をOCRして"
+        "ap_invoice_submit_ocr_smoke_test_resultへsubmitしてください。"
+        "OCR_SMOKE_TEST_PASSED後も、no-sidecar本実装が入るまではAPレビュー本体へ"
+        "進めないでください。Airtableや外部registryは検索しないでください。"
     )
 
 
