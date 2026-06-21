@@ -15,6 +15,7 @@ SAMPLE_LOCK = DIST / ".sample-generation.lock"
 SAMPLE_LOCK_ENV = "AP_SAMPLE_GENERATION_LOCKED"
 LOCK_POLL_SECONDS = 0.2
 LOCK_TIMEOUT_SECONDS = 120.0
+ZIP_TIMESTAMP = (2026, 1, 1, 0, 0, 0)
 
 INCLUDE_DIRS = [
     ".claude",
@@ -99,17 +100,25 @@ def add_path(zf: zipfile.ZipFile, path: Path) -> None:
     if path.is_dir():
         for child in sorted(path.rglob("*")):
             if child.is_file() and not should_skip(child):
-                zf.write(child, child.relative_to(PROJECT_ROOT).as_posix())
+                write_file(zf, child, child.relative_to(PROJECT_ROOT).as_posix())
     elif path.is_file() and not should_skip(path):
-        zf.write(path, path.relative_to(PROJECT_ROOT).as_posix())
+        write_file(zf, path, path.relative_to(PROJECT_ROOT).as_posix())
 
 
 def add_claude_plugin_aliases(zf: zipfile.ZipFile) -> None:
-    zf.write(PROJECT_ROOT / ".claude-plugin" / "plugin.json", ".claude-plugin/plugin.json")
-    zf.write(
+    write_file(zf, PROJECT_ROOT / ".claude-plugin" / "plugin.json", ".claude-plugin/plugin.json")
+    write_file(
+        zf,
         PROJECT_ROOT / "workflow-packs" / "ap-invoice-v1" / "SKILL.md",
         "skills/ap-review/SKILL.md",
     )
+
+
+def write_file(zf: zipfile.ZipFile, path: Path, arcname: str) -> None:
+    info = zipfile.ZipInfo(arcname, ZIP_TIMESTAMP)
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.external_attr = 0o644 << 16
+    zf.writestr(info, path.read_bytes())
 
 
 def assert_no_bom() -> None:

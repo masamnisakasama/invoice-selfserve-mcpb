@@ -7,7 +7,7 @@ PIP := $(VENV)/bin/pip
         test-ap-fixtures test-ap-golden package-ap-mcpb package-plugin \
         verify-ap-data-boundary verify-mcpb-contents verify-plugin-contents \
         verify-no-answer-sidecars verify-ocr-smoke-gate verify-e2e-ocr-flow \
-        smoke-ap-mcp dev-mcp
+        verify-mcpb-schema smoke-ap-mcp validate-mcpb-release dev-mcp
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -61,8 +61,16 @@ verify-ocr-smoke-gate:
 verify-e2e-ocr-flow:
 	$(PY) scripts/verify_e2e_ocr_flow.py
 
+verify-mcpb-schema:
+	npx --yes @anthropic-ai/mcpb validate manifest.json
+	npx --yes @anthropic-ai/mcpb info dist/ap-invoice-review.mcpb
+
 smoke-ap-mcp:
 	$(PY) scripts/smoke_ap_mcp.py
+
+validate-mcpb-release: lint typecheck test package-ap-mcpb verify-ap-data-boundary \
+        verify-mcpb-contents verify-no-answer-sidecars verify-ocr-smoke-gate \
+        verify-e2e-ocr-flow smoke-ap-mcp verify-mcpb-schema
 
 dev-mcp:
 	$(PY) -m ap_invoice_mcp

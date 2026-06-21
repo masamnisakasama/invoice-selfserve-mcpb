@@ -19,6 +19,10 @@ REQUIRED_CASES = (
     "case-f-tax-review",
 )
 REQUIRED_DOCS = ("invoice", "purchase_order", "goods_receipt")
+REQUIRED_SAMPLE_PREFIXES = (
+    "samples",
+    "workflow-packs/ap-invoice-v1/samples",
+)
 MIN_VISUAL_RMS_DIFF = 18.0
 REQUIRED_TOOLS = (
     "ap_invoice_setup_demo_workspace",
@@ -124,9 +128,10 @@ def main() -> None:
                 failures.append(f"manifest ap-review prompt missing guardrail: {required_text}")
         for case_id in REQUIRED_CASES:
             for doc in REQUIRED_DOCS:
-                path = f"samples/{case_id}/{doc}.pdf"
-                if path not in names:
-                    failures.append(f"sample PDF missing: {path}")
+                for prefix in REQUIRED_SAMPLE_PREFIXES:
+                    path = f"{prefix}/{case_id}/{doc}.pdf"
+                    if path not in names:
+                        failures.append(f"sample PDF missing: {path}")
         forbidden_json = [
             name
             for name in names
@@ -144,6 +149,10 @@ def main() -> None:
             failures.append("workflow ruleset missing")
         if ".claude-plugin/plugin.json" not in names:
             failures.append("root Claude plugin metadata missing")
+        else:
+            plugin_json = json.loads(zf.read(".claude-plugin/plugin.json").decode("utf-8"))
+            if plugin_json.get("name") != "ap-invoice-review":
+                failures.append("Claude plugin metadata name must be ap-invoice-review")
         for skill_path in REQUIRED_SKILLS:
             if skill_path not in names:
                 failures.append(f"AP review skill missing: {skill_path}")
@@ -162,11 +171,27 @@ def main() -> None:
             for required_text in COMMAND_MUST_CONTAIN:
                 if required_text not in command:
                     failures.append(f"{command_path} missing required guardrail: {required_text}")
+        failures.extend(_check_mirrored_entrypoints(zf, names))
     if failures:
         for failure in failures:
             print(failure)
         raise SystemExit(1)
     print(f"MCPB content check passed: {bundle}")
+
+
+def _check_mirrored_entrypoints(zf: zipfile.ZipFile, names: set[str]) -> list[str]:
+    failures: list[str] = []
+    for left, right in (
+        ("commands/ap-review.md", ".claude/commands/ap-review.md"),
+        ("skills/ap-review/SKILL.md", ".claude/skills/ap-review/SKILL.md"),
+    ):
+        if left not in names or right not in names:
+            continue
+        left_payload = zf.read(left)
+        right_payload = zf.read(right)
+        if left_payload != right_payload:
+            failures.append(f"packaged entrypoints must match: {left} != {right}")
+    return failures
 
 
 def _check_no_bom(zf: zipfile.ZipFile, names: set[str]) -> list[str]:
