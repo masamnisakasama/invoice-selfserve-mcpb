@@ -22,24 +22,44 @@
   },
   "tools": [
     {
+      "name": "list_ap_demo_cases",
+      "description": "List bundled AP invoice demo cases and explain their business value."
+    },
+    {
+      "name": "review_ap_demo_case",
+      "description": "Run a bundled AP invoice demo case end-to-end and return a business decision packet."
+    },
+    {
+      "name": "review_ap_invoice_packet",
+      "description": "Review an invoice, purchase order, and goods receipt packet end-to-end."
+    },
+    {
+      "name": "explain_ap_exception",
+      "description": "Explain AP invoice review exceptions with evidence, rule IDs, and next actions."
+    },
+    {
+      "name": "build_ap_approval_brief",
+      "description": "Build a concise approval or hold brief for an AP approver."
+    },
+    {
       "name": "create_ap_review_case",
-      "description": "Create an AP invoice review case and return required upload slots."
+      "description": "Advanced: create an AP invoice review case and return required upload slots."
     },
     {
       "name": "upload_ap_document",
-      "description": "Attach a bundled demo invoice, purchase order, or goods receipt PDF to a case."
+      "description": "Advanced: attach a bundled demo invoice, purchase order, or goods receipt PDF to a case."
     },
     {
       "name": "start_ap_invoice_review",
-      "description": "Run deterministic AP 3-way match, duplicate, vendor, and tax checks."
+      "description": "Advanced: run deterministic AP 3-way match, duplicate, vendor, and tax checks."
     },
     {
       "name": "get_ap_invoice_review_result",
-      "description": "Return a completed AP review decision packet with evidence and artifacts."
+      "description": "Advanced: return a completed AP review decision packet with evidence and artifacts."
     },
     {
       "name": "build_erp_draft_payload",
-      "description": "Build a draft-only ERP/SaaS payload. External writes are never performed."
+      "description": "Advanced: build a draft-only ERP/SaaS payload. External writes are never performed."
     }
   ],
   "keywords": ["accounts-payable", "invoice", "mcp", "mcpb", "workflow-pack"],

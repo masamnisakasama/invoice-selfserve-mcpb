@@ -125,9 +125,8 @@ Example prompt:
 
 ```text
 Use the AP Invoice Exception Review MCPB.
-Create a demo AP review case for tenant demo-tenant.
-Upload the bundled case-a-pay-ready invoice, purchase_order, and goods_receipt documents.
-Start the review, get the result, and build a generic_ap draft payload.
+Review bundled demo case-a-pay-ready end-to-end.
+Use review_ap_demo_case, then explain the result and build an approval brief.
 Confirm that write_performed is false.
 ```
 
@@ -207,6 +206,11 @@ List the available AP Invoice MCP tools.
 Expected tools:
 
 ```text
+list_ap_demo_cases
+review_ap_demo_case
+review_ap_invoice_packet
+explain_ap_exception
+build_ap_approval_brief
 create_ap_review_case
 upload_ap_document
 start_ap_invoice_review
@@ -393,9 +397,8 @@ Example prompt:
 
 ```text
 Use the AP Invoice Exception Review MCPB.
-Create a demo AP review case for tenant demo-tenant.
-Upload the bundled case-a-pay-ready invoice, purchase_order, and goods_receipt documents.
-Start the review, get the result, and build a generic_ap draft payload.
+Review bundled demo case-a-pay-ready end-to-end.
+Use review_ap_demo_case, then explain the result and build an approval brief.
 Confirm that write_performed is false.
 ```
 
@@ -475,6 +478,11 @@ List the available AP Invoice MCP tools.
 期待されるtools:
 
 ```text
+list_ap_demo_cases
+review_ap_demo_case
+review_ap_invoice_packet
+explain_ap_exception
+build_ap_approval_brief
 create_ap_review_case
 upload_ap_document
 start_ap_invoice_review

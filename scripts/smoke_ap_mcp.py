@@ -10,21 +10,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> None:
     service = ReviewService(project_root=PROJECT_ROOT, artifact_root=PROJECT_ROOT / "artifacts" / "smoke")
-    created = service.create_case(tenant_id="demo-tenant", case_label="smoke case-a")
-    case_id = created["case_id"]
-    sample_dir = PROJECT_ROOT / "samples" / "case-a-pay-ready"
-    for document_type in ("invoice", "purchase_order", "goods_receipt"):
-        service.upload_document(
-            case_id=case_id,
-            document_type=document_type,
-            file_path=str(sample_dir / f"{document_type}.pdf"),
-        )
-    started = service.start_review(case_id=case_id)
-    result = service.get_review_result(job_id=started["job_id"])["result"]
+    cases = service.list_demo_cases()["demo_cases"]
+    assert len(cases) == 4
+    result = service.review_demo_case(case_id="case-a-pay-ready", tenant_id="demo-tenant")
     assert result["recommendation"] == "PAY_READY_CANDIDATE"
-    draft = service.build_draft_payload(case_id=case_id, target_system="generic_ap")
-    assert draft["write_performed"] is False
-    print("Smoke passed: create/upload/start/get/draft case-a")
+    assert result["draft_payload"]["write_performed"] is False
+    assert result["write_performed"] is False
+    brief = service.build_approval_brief(job_id=str(result["job_id"]))
+    assert brief["approval_recommendation"] == "approve_candidate"
+    print("Smoke passed: list_ap_demo_cases/review_ap_demo_case/build_ap_approval_brief")
 
 
 if __name__ == "__main__":

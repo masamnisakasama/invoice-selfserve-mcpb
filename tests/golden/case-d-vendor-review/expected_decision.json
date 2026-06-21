@@ -1,0 +1,12 @@
+{
+  "recommendation": "REFER_VENDOR_REVIEW",
+  "rule_ids": ["AP-VENDOR-002"],
+  "match_status": {
+    "vendor_master": "mismatch",
+    "po_match": "matched",
+    "grn_match": "matched",
+    "duplicate_check": "clear",
+    "tax_check": "matched"
+  },
+  "write_performed": false
+}

@@ -15,6 +15,7 @@ INCLUDE_DIRS = [
     "ap_invoice_mcp",
     "workflow-packs",
     "samples",
+    "docs",
     "enterprise-bundle/plugin/ap-invoice-review",
 ]
 INCLUDE_FILES = [

@@ -1,0 +1,12 @@
+{
+  "recommendation": "REFER_DUPLICATE_REVIEW",
+  "rule_ids": ["AP-DUP-001"],
+  "match_status": {
+    "vendor_master": "matched",
+    "po_match": "matched",
+    "grn_match": "matched",
+    "duplicate_check": "candidate",
+    "tax_check": "matched"
+  },
+  "write_performed": false
+}

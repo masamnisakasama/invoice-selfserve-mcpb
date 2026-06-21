@@ -33,6 +33,27 @@ def test_golden_decision_artifacts_match_expected_case_results(tmp_path: Path) -
         assert [rule["rule_id"] for rule in rules] == expected["rule_ids"]
 
 
+def test_v2_expected_decision_snapshots(tmp_path: Path) -> None:
+    for case_name in (
+        "case-a-pay-ready",
+        "case-b-po-mismatch",
+        "case-c-duplicate",
+        "case-d-vendor-review",
+    ):
+        expected_path = Path(__file__).parent / case_name / "expected_decision.json"
+        expected = json.loads(expected_path.read_text("utf-8"))
+        result = review_case(case_name, tmp_path / "artifacts" / case_name)["result"]
+
+        assert result["recommendation"] == expected["recommendation"]
+        assert [rule["rule_id"] for rule in result["rule_results"]] == expected["rule_ids"]
+        assert {
+            key: value["status"] for key, value in result["match_results"].items()
+        } == expected["match_status"]
+        assert result["write_performed"] == expected["write_performed"]
+        assert result["draft_payloads"]["generic_ap"]["write_performed"] is False
+        assert result["audit_artifacts"]
+
+
 def test_draft_payload_snapshot_is_draft_only(tmp_path: Path) -> None:
     reviewed = review_case("case-a-pay-ready", tmp_path / "artifacts")
     result = reviewed["result"]

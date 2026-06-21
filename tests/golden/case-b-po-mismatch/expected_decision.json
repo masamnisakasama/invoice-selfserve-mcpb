@@ -1,0 +1,12 @@
+{
+  "recommendation": "REFER_PO_MISMATCH",
+  "rule_ids": ["AP-PO-001"],
+  "match_status": {
+    "vendor_master": "matched",
+    "po_match": "mismatch",
+    "grn_match": "matched",
+    "duplicate_check": "clear",
+    "tax_check": "matched"
+  },
+  "write_performed": false
+}

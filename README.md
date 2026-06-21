@@ -45,6 +45,18 @@ must include `write_performed=false`.
 
 ## MCP Tools
 
+High-level UX tools:
+
+```text
+list_ap_demo_cases
+review_ap_demo_case
+review_ap_invoice_packet
+explain_ap_exception
+build_ap_approval_brief
+```
+
+Advanced/debug tools:
+
 ```text
 create_ap_review_case
 upload_ap_document

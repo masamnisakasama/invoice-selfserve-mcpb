@@ -9,12 +9,39 @@ def test_mcp_tools_list_is_stable_and_schema_backed() -> None:
     tools = asyncio.run(mcp.list_tools())
     by_name = {tool.name: tool for tool in tools}
     assert sorted(by_name) == [
+        "build_ap_approval_brief",
         "build_erp_draft_payload",
         "create_ap_review_case",
+        "explain_ap_exception",
         "get_ap_invoice_review_result",
+        "list_ap_demo_cases",
+        "review_ap_demo_case",
+        "review_ap_invoice_packet",
         "start_ap_invoice_review",
         "upload_ap_document",
     ]
     for tool in tools:
         assert tool.inputSchema["type"] == "object"
         assert "properties" in tool.inputSchema
+
+    assert by_name["review_ap_demo_case"].inputSchema["required"] == ["case_id"]
+    assert by_name["review_ap_invoice_packet"].inputSchema["required"] == [
+        "tenant_id",
+        "invoice_path",
+        "purchase_order_path",
+        "goods_receipt_path",
+    ]
+    assert by_name["explain_ap_exception"].inputSchema["required"] == ["job_id"]
+    assert by_name["build_ap_approval_brief"].inputSchema["required"] == ["job_id"]
+
+
+def test_mcp_prompts_list_is_stable() -> None:
+    prompts = asyncio.run(mcp.list_prompts())
+    names = sorted(prompt.name for prompt in prompts)
+
+    assert names == [
+        "ap-approval-brief",
+        "ap-demo",
+        "ap-explain",
+        "ap-review",
+    ]

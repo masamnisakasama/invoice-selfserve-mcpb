@@ -10,6 +10,8 @@ Implemented scope:
 - Reference CSVs: vendor, PO, GRN, invoice history, tax code, and cost center
 - Core checks: vendor master, PO amount, GRN quantity, duplicate invoice, and tax amount
 - MCP tools: create case, upload document, start review, get result, and build draft payload
+- V2 UX tools: list demo cases, review demo case end-to-end, review packet end-to-end, explain exception, and build approval brief
+- MCP prompts: `/ap-demo`, `/ap-review`, `/ap-explain`, and `/ap-approval-brief` equivalents
 - Demo fixtures: case-a through case-d
 - Regression tests: unit, fixture, and golden artifact tests
 - MCPB packaging: `make package-ap-mcpb`
@@ -45,6 +47,14 @@ Expected fixture outcomes:
 
 All draft payloads must keep `write_performed` set to `false`.
 
+V2 UX entrypoints:
+
+- `list_ap_demo_cases`
+- `review_ap_demo_case`
+- `review_ap_invoice_packet`
+- `explain_ap_exception`
+- `build_ap_approval_brief`
+
 Security review fixes applied for the demo scope:
 
 - Upload paths are restricted to bundled demo sample directories.
@@ -74,6 +84,8 @@ Remaining non-scope security items for production Remote MCP:
 - 参照CSV: 取引先、PO、GRN、過去請求、税コード、コストセンター
 - Core checks: 取引先マスタ照合、PO金額照合、GRN数量照合、重複請求、税額確認
 - MCP tools: case作成、document upload、review開始、結果取得、draft payload生成
+- V2 UX tools: demo case一覧、demo case end-to-end review、packet end-to-end review、例外説明、承認者brief
+- MCP prompts: `/ap-demo`、`/ap-review`、`/ap-explain`、`/ap-approval-brief` 相当
 - Demo fixtures: case-a から case-d
 - 回帰テスト: unit、fixture、golden artifact tests
 - MCPB package: `make package-ap-mcpb`
@@ -108,6 +120,14 @@ make smoke-ap-mcp
 - `case-d-vendor-review`: `REFER_VENDOR_REVIEW`
 
 すべての draft payload は `write_performed: false` を維持します。
+
+V2 UX entrypoints:
+
+- `list_ap_demo_cases`
+- `review_ap_demo_case`
+- `review_ap_invoice_packet`
+- `explain_ap_exception`
+- `build_ap_approval_brief`
 
 デモスコープで適用済みのSecurity review対応:
 
