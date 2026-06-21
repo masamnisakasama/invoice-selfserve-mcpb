@@ -16,6 +16,7 @@ make test
 make package-ap-mcpb
 make verify-ap-data-boundary
 make smoke-ap-mcp
+npx -y @anthropic-ai/mcpb validate manifest.json
 ```
 
 Run the local MCP server:
@@ -59,3 +60,6 @@ kintone, ERP, banking, or payment systems.
 
 See `docs/AP_INVOICE_SELF_SERVE_MCPB_HANDOFF.md` for the implemented scope,
 non-scope, verification commands, and expected fixture outcomes.
+
+For the two-PC Claude Desktop demo flow, see
+`docs/CLAUDE_DESKTOP_MULTI_PC_DEMO_RUNBOOK.md`.

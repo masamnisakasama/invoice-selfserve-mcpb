@@ -1,17 +1,53 @@
 {
-  "id": "ap-invoice-review",
-  "name": "AP Invoice Exception Review MCPB",
+  "manifest_version": "0.4",
+  "name": "ap-invoice-review",
+  "display_name": "AP Invoice Exception Review",
   "version": "0.1.0",
   "description": "Self-serve MCPB for deterministic AP invoice exception review.",
-  "server": {
-    "type": "stdio",
-    "command": "python",
-    "args": ["-m", "ap_invoice_mcp"]
+  "long_description": "Review AP invoice packets with deterministic vendor master matching, PO matching, GRN matching, duplicate checks, tax checks, audit artifacts, and draft-only ERP/SaaS payload generation.",
+  "author": {
+    "name": "masamnisakasama"
   },
-  "workflow_pack": "ap-invoice-v1",
-  "write_policy": {
-    "external_write_allowed": false,
-    "draft_payload_allowed": true
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/masamnisakasama/invoice-selfserve-mcpb.git"
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "ap_invoice_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "python", "-m", "ap_invoice_mcp"]
+    }
+  },
+  "tools": [
+    {
+      "name": "create_ap_review_case",
+      "description": "Create an AP invoice review case and return required upload slots."
+    },
+    {
+      "name": "upload_ap_document",
+      "description": "Attach a bundled demo invoice, purchase order, or goods receipt PDF to a case."
+    },
+    {
+      "name": "start_ap_invoice_review",
+      "description": "Run deterministic AP 3-way match, duplicate, vendor, and tax checks."
+    },
+    {
+      "name": "get_ap_invoice_review_result",
+      "description": "Return a completed AP review decision packet with evidence and artifacts."
+    },
+    {
+      "name": "build_erp_draft_payload",
+      "description": "Build a draft-only ERP/SaaS payload. External writes are never performed."
+    }
+  ],
+  "keywords": ["accounts-payable", "invoice", "mcp", "mcpb", "workflow-pack"],
+  "license": "MIT",
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.11"
+    }
   }
 }
-

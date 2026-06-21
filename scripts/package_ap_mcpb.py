@@ -21,6 +21,7 @@ INCLUDE_FILES = [
     "manifest.json",
     "README.md",
     "pyproject.toml",
+    "uv.lock",
 ]
 
 SKIP_PARTS = {
