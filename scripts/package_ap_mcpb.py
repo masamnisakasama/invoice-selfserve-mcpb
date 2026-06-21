@@ -47,6 +47,9 @@ EXCLUDE_PATHS = {
     "docs/HANDOFF_SESSION3.md",
     "docs/codex-task.md",
 }
+EXCLUDE_PREFIXES = (
+    "docs/archive/",
+)
 NO_BOM_FILES = (
     ".claude-plugin/plugin.json",
     ".claude/commands/ap-review.md",
@@ -93,7 +96,12 @@ def release_sample_lock() -> None:
 
 def should_skip(path: Path) -> bool:
     relative = path.relative_to(PROJECT_ROOT)
-    return relative.as_posix() in EXCLUDE_PATHS or any(part in SKIP_PARTS for part in relative.parts)
+    relative_posix = relative.as_posix()
+    return (
+        relative_posix in EXCLUDE_PATHS
+        or any(relative_posix.startswith(prefix) for prefix in EXCLUDE_PREFIXES)
+        or any(part in SKIP_PARTS for part in relative.parts)
+    )
 
 
 def add_path(zf: zipfile.ZipFile, path: Path) -> None:

@@ -1,106 +1,81 @@
-# AP Invoice Exception Review MCPB
+# AP Invoice Review MCPB
 
-Self-serve MCPB demo for accounts payable invoice exception review. It performs
-deterministic matching across invoice, purchase order, goods receipt, vendor
-master, invoice history, tax code master, and payment rules. It generates draft
-payloads only; no external SaaS or ERP write is performed.
+Claude Desktopで使う、買掛請求書レビューのMCPBデモです。請求書、発注書、納品書/検収書のPDFをClaude OCRで読み取り、MCPB側の決定論的ルールで3-way match、取引先確認、重複確認、税額確認を行います。
 
-買掛請求書の例外レビューを行う self-serve MCPB デモです。請求書、発注書、納品書/検収、取引先マスタ、過去請求、税区分、支払ルールを決定論的に照合します。生成するのは draft payload のみで、外部 SaaS / ERP への本書き込みは行いません。
+This is a Claude Desktop MCPB demo for accounts payable invoice review. Claude reads the PDF forms with vision/OCR, then the MCPB applies deterministic AP rules and returns the payment decision, evidence, next actions, and draft-only payload summaries.
 
-## Quick Start
+## デモを使う人へ
 
-```bash
-make install
-make generate-ap-samples
-make test
-make package-ap-mcpb
-make package-plugin
-make verify-ap-data-boundary
-make verify-mcpb-contents
-make verify-plugin-contents
-make verify-no-answer-sidecars
-make verify-ocr-smoke-gate
-make verify-e2e-ocr-flow
-make smoke-ap-mcp
-npx -y @anthropic-ai/mcpb validate manifest.json
-```
+最初に読む文書:
 
-Run the local MCP server:
+- [日本語デモ手順](docs/DEMO_GUIDE_JA.md)
+- [Validation / 検証手順](docs/VALIDATION.md)
 
-```bash
-make dev-mcp
-```
-
-## Demo Cases
-
-```text
-case-a-pay-ready       PAY_READY_CANDIDATE
-case-b-po-mismatch     REFER_PO_MISMATCH
-case-c-duplicate       REFER_DUPLICATE_REVIEW
-case-d-vendor-review   REFER_VENDOR_REVIEW
-case-e-grn-mismatch    REFER_GRN_MISMATCH
-case-f-tax-review      REFER_TAX_REVIEW
-```
-
-## Package
+配布・インストールするファイル:
 
 ```text
 dist/ap-invoice-review.mcpb
-dist/ap-invoice-review.plugin
 ```
 
-The generated packages contain no production secrets and all generated draft
-payloads must include `write_performed=false`. The `.plugin` package includes
-the root `SKILL.md` alias and bundled demo PDFs so Claude Desktop can discover
-the AP review flow and run `case-a` through `case-f` without external files.
+このデモは架空データ専用です。freee、kintone、ERP、銀行、支払システムへの本書き込みは行いません。結果には必ず `write_performed=false` を含めます。
 
-## MCP Tools
+## クイック確認
 
-High-level UX tools:
+開発PCでMCPBを再生成し、リリース前検証をまとめて実行します。
+
+```bash
+make install
+make validate-mcpb-release
+```
+
+`make validate-mcpb-release` には、lint、typecheck、全pytest、MCPB再生成、bundle内容検証、sidecar禁止、OCR smoke、E2E OCR flow、MCP smoke、公式MCPB manifest validationが含まれます。
+
+## Claude Desktopでの基本プロンプト
+
+MCPBをClaude Desktopにインストールした後、新しいチャットで次のように依頼します。
+
+```text
+AP Invoice Review MCPBを使って、デモワークスペースを作成し、case-a-pay-readyをレビューしてください。PDFをOCRして、判定・根拠・次アクション・write_performed=falseを日本語で返してください。
+```
+
+他のケース:
+
+```text
+case-b-po-mismatchをレビューしてください
+case-c-duplicateをレビューしてください
+case-d-vendor-reviewをレビューしてください
+case-e-grn-mismatchをレビューしてください
+case-f-tax-reviewをレビューしてください
+```
+
+`/ap-review case-a` が使える環境では、それを使っても構いません。Claude Desktop/Coworkのバージョンによってslash command表示が異なる場合は、上の自然文プロンプトを使ってください。
+
+## デモケース
+
+| Case | Expected result | Meaning |
+|---|---|---|
+| `case-a-pay-ready` | `PAY_READY_CANDIDATE` | 支払候補 |
+| `case-b-po-mismatch` | `REFER_PO_MISMATCH` | PO金額差異 |
+| `case-c-duplicate` | `REFER_DUPLICATE_REVIEW` | 重複請求疑い |
+| `case-d-vendor-review` | `REFER_VENDOR_REVIEW` | 取引先マスタ確認 |
+| `case-e-grn-mismatch` | `REFER_GRN_MISMATCH` | 検収数量不足 |
+| `case-f-tax-review` | `REFER_TAX_REVIEW` | 税額確認 |
+
+## 主要MCPツール
+
+通常のデモでは、Claudeが以下の流れでツールを呼びます。
 
 ```text
 ap_invoice_setup_demo_workspace
-ap_invoice_list_demo_cases
-ap_invoice_preview_folder
-ap_invoice_prepare_ocr_run
+ap_invoice_review_demo_case
+Claude OCR
 ap_invoice_submit_ocr_result
 ap_invoice_review_from_ocr_result
-ap_invoice_review_folder
-ap_invoice_review_demo_case
-ap_invoice_explain_exception
-ap_invoice_build_approval_brief
 ap_invoice_build_resolution_pack
 ```
 
-Diagnostic tools:
+フォルダを指定する場合は `ap_invoice_prepare_ocr_run` から始まります。
 
-```text
-ap_invoice_ocr_smoke_test
-ap_invoice_submit_ocr_smoke_test_result
-```
+## 文書構成
 
-Legacy compatibility tools are intentionally blocked:
-
-```text
-list_ap_demo_cases
-review_ap_demo_case
-review_ap_invoice_packet
-explain_ap_exception
-build_ap_approval_brief
-create_ap_review_case
-upload_ap_document
-start_ap_invoice_review
-get_ap_invoice_review_result
-build_erp_draft_payload
-```
-
-All tools are draft-only. The project intentionally does not write to freee,
-kintone, ERP, banking, or payment systems.
-
-## Handoff
-
-See `docs/AP_INVOICE_SELF_SERVE_MCPB_HANDOFF.md` for the implemented scope,
-non-scope, verification commands, and expected fixture outcomes.
-
-For the two-PC Claude Desktop demo flow, see
-`docs/CLAUDE_DESKTOP_MULTI_PC_DEMO_RUNBOOK.md`.
+利用者向け文書は `docs/` 直下に置いています。長い実装仕様、過去のhandoff、作業メモは `docs/archive/` に退避しています。MCPB成果物にはarchive文書を含めません。

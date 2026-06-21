@@ -48,6 +48,12 @@ REQUIRED_COMMANDS = (
     "commands/ap-review.md",
     ".claude/commands/ap-review.md",
 )
+REQUIRED_USER_DOCS = (
+    "README.md",
+    "docs/README.md",
+    "docs/DEMO_GUIDE_JA.md",
+    "docs/VALIDATION.md",
+)
 REQUIRED_SKILLS = (
     "skills/ap-review/SKILL.md",
     ".claude/skills/ap-review/SKILL.md",
@@ -77,6 +83,9 @@ FORBIDDEN_WORK_NOTES = (
     "docs/HANDOFF_SESSION3.md",
     "docs/codex-task.md",
 )
+FORBIDDEN_PREFIXES = (
+    "docs/archive/",
+)
 
 
 def main() -> None:
@@ -92,6 +101,9 @@ def main() -> None:
         for forbidden_note in FORBIDDEN_WORK_NOTES:
             if forbidden_note in names:
                 failures.append(f"work note must not be packaged: {forbidden_note}")
+        for name in sorted(names):
+            if any(name.startswith(prefix) for prefix in FORBIDDEN_PREFIXES):
+                failures.append(f"archived document must not be packaged: {name}")
         if "manifest.json" not in names:
             failures.append("manifest.json missing")
             manifest = {}
@@ -147,6 +159,9 @@ def main() -> None:
         failures.extend(_check_document_visual_distinction(zf, names))
         if "workflow-packs/ap-invoice-v1/ruleset.yaml" not in names:
             failures.append("workflow ruleset missing")
+        for doc_path in REQUIRED_USER_DOCS:
+            if doc_path not in names:
+                failures.append(f"user-facing document missing: {doc_path}")
         if ".claude-plugin/plugin.json" not in names:
             failures.append("root Claude plugin metadata missing")
         else:
