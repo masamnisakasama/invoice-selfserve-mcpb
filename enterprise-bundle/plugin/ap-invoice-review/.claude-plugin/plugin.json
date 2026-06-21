@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "name": "ap-invoice-review",
+  "display_name": "AP Invoice Exception Review",
+  "version": "0.1.0",
+  "description": "Guided AP invoice exception review using deterministic MCP tools.",
+  "skills": [
+    {
+      "id": "ap-review",
+      "name": "AP Invoice Review",
+      "path": "skills/ap-review/SKILL.md"
+    }
+  ]
+}

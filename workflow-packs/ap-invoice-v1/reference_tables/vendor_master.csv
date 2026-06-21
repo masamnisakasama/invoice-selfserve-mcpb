@@ -1,0 +1,4 @@
+vendor_id,vendor_name,bank_account,registration_number,payment_terms,tax_category,blocked
+V-1001,Tokyo Office Supply Co.,0001-1234567,T1234567890123,NET30,JP10,false
+V-2002,Osaka Logistics Ltd.,0005-7654321,T2234567890123,NET30,JP10,false
+V-9009,Blocked Trading KK,0099-0000001,T9234567890123,PREPAY,JP10,true

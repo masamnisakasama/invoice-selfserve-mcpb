@@ -1,0 +1,350 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from .matchers import (
+    duplicate_score,
+    match_goods_receipt,
+    match_purchase_order,
+    match_vendor_master,
+    receipt_due_date,
+    tax_check,
+)
+from .models import (
+    AuditArtifacts,
+    CanonicalFacts,
+    DecisionResult,
+    DraftPayloads,
+    Evidence,
+    MatchResult,
+    Recommendation,
+    RuleResult,
+)
+from .reference import ReferenceData
+
+
+RULESET_VERSION = "ap-demo-2026-01"
+WORKFLOW_PACK = "ap-invoice-v1"
+
+
+def _field_value(facts: CanonicalFacts, path: str) -> Any:
+    node: Any = facts
+    for part in path.split("."):
+        node = getattr(node, part)
+    return node.value if hasattr(node, "value") else node
+
+
+def _evidence_for(facts: CanonicalFacts, path: str) -> list[Evidence]:
+    node: Any = facts
+    for part in path.split("."):
+        node = getattr(node, part)
+    return list(getattr(node, "evidence", []))
+
+
+def _load_ruleset(pack_dir: Path) -> dict[str, Any]:
+    return yaml.safe_load((pack_dir / "ruleset.yaml").read_text("utf-8"))
+
+
+def _rule(rule_id: str, ruleset: dict[str, Any]) -> dict[str, Any]:
+    for rule in ruleset["rules"]:
+        if rule["id"] == rule_id:
+            return rule
+    raise KeyError(rule_id)
+
+
+def _to_rule_result(
+    *,
+    rule_id: str,
+    ruleset: dict[str, Any],
+    evidence: list[Evidence],
+    missing_information: list[str] | None = None,
+) -> RuleResult:
+    rule = _rule(rule_id, ruleset)
+    return RuleResult(
+        rule_id=rule_id,
+        category=rule["category"],
+        severity=rule["severity"],
+        recommendation=Recommendation(rule["then"]["recommendation"]),
+        description=rule["description"],
+        evidence=evidence,
+        missing_information=missing_information or rule["then"].get("missing_information", []),
+    )
+
+
+def evaluate_rules(
+    *,
+    facts: CanonicalFacts,
+    refs: ReferenceData,
+    pack_dir: Path,
+    match_results: dict[str, MatchResult],
+) -> list[RuleResult]:
+    ruleset = _load_ruleset(pack_dir)
+    results: list[RuleResult] = []
+    if not facts.invoice.invoice_number.value:
+        results.append(
+            _to_rule_result(
+                rule_id="AP-REQ-001",
+                ruleset=ruleset,
+                evidence=_evidence_for(facts, "invoice.invoice_number"),
+            )
+        )
+    vendor = match_results["vendor_master"]
+    if vendor.status == "not_found":
+        results.append(
+            _to_rule_result(
+                rule_id="AP-VENDOR-001",
+                ruleset=ruleset,
+                evidence=facts.invoice.vendor_id.evidence,
+            )
+        )
+    if vendor.details.get("bank_account_match") is False:
+        results.append(
+            _to_rule_result(
+                rule_id="AP-VENDOR-002",
+                ruleset=ruleset,
+                evidence=facts.invoice.bank_account.evidence,
+            )
+        )
+    if vendor.details.get("blocked") is True:
+        results.append(
+            _to_rule_result(
+                rule_id="AP-BLOCK-001",
+                ruleset=ruleset,
+                evidence=facts.invoice.vendor_id.evidence,
+            )
+        )
+    if match_results["po_match"].details.get("within_tolerance") is False:
+        results.append(
+            _to_rule_result(
+                rule_id="AP-PO-001",
+                ruleset=ruleset,
+                evidence=match_results["po_match"].evidence,
+            )
+        )
+    if match_results["grn_match"].details.get("quantity_covered") is False:
+        results.append(
+            _to_rule_result(
+                rule_id="AP-GRN-001",
+                ruleset=ruleset,
+                evidence=match_results["grn_match"].evidence,
+            )
+        )
+    if int(match_results["duplicate_check"].details.get("score", 0)) >= 80:
+        results.append(
+            _to_rule_result(
+                rule_id="AP-DUP-001",
+                ruleset=ruleset,
+                evidence=match_results["duplicate_check"].evidence,
+            )
+        )
+    if match_results["tax_check"].status != "matched":
+        results.append(
+            _to_rule_result(
+                rule_id="AP-TAX-001",
+                ruleset=ruleset,
+                evidence=match_results["tax_check"].evidence,
+            )
+        )
+    return results
+
+
+def choose_recommendation(rule_results: list[RuleResult]) -> Recommendation:
+    if not rule_results:
+        return Recommendation.PAY_READY_CANDIDATE
+    return max((r.recommendation for r in rule_results), key=lambda r: r.severity)
+
+
+def build_draft_payloads(case_id: str, facts: CanonicalFacts, recommendation: Recommendation) -> DraftPayloads:
+    invoice = facts.invoice
+    due_date = (
+        invoice.due_date.value
+        if invoice.due_date is not None and invoice.due_date.value
+        else receipt_due_date(str(invoice.invoice_date.value))
+    )
+    generic = {
+        "vendor_id": invoice.vendor_id.value,
+        "invoice_number": invoice.invoice_number.value,
+        "invoice_date": invoice.invoice_date.value,
+        "due_date": due_date,
+        "currency": invoice.currency.value,
+        "subtotal_amount": invoice.subtotal_amount.value,
+        "tax_amount": invoice.tax_amount.value,
+        "total_amount": invoice.total_amount.value,
+        "po_number": invoice.po_number.value,
+        "cost_center": invoice.cost_center.value if invoice.cost_center else None,
+        "payment_status": "draft",
+        "source_case_id": case_id,
+        "write_performed": False,
+    }
+    freee = {
+        "partner_code": invoice.vendor_id.value,
+        "issue_date": invoice.invoice_date.value,
+        "amount": invoice.total_amount.value,
+        "tax_code": invoice.tax_code.value,
+        "memo": "Draft generated by AP Invoice Exception Review MCPB",
+        "write_performed": False,
+    }
+    kintone = {
+        "app": "AP_EXCEPTION_REVIEW",
+        "record": {
+            "case_id": {"value": case_id},
+            "recommendation": {"value": recommendation.value},
+            "vendor_id": {"value": invoice.vendor_id.value},
+            "invoice_number": {"value": invoice.invoice_number.value},
+            "total_amount": {"value": invoice.total_amount.value},
+            "exception_summary": {"value": _summary_for(recommendation)},
+        },
+        "write_performed": False,
+    }
+    return DraftPayloads(generic_ap=generic, freee=freee, kintone_review_record=kintone)
+
+
+def _summary_for(recommendation: Recommendation) -> str:
+    return {
+        Recommendation.PAY_READY_CANDIDATE: "請求書、発注書、納品書の主要項目は一致しています。",
+        Recommendation.REFER_PO_MISMATCH: "PO金額との差異が許容範囲を超えています。",
+        Recommendation.REFER_GRN_MISMATCH: "検収数量が請求数量を満たしていません。",
+        Recommendation.REFER_VENDOR_REVIEW: "取引先マスタの確認が必要です。",
+        Recommendation.REFER_DUPLICATE_REVIEW: "重複請求候補が検出されました。",
+        Recommendation.REFER_TAX_REVIEW: "税額または税区分の確認が必要です。",
+        Recommendation.REFER_INFO_REQUEST: "必須情報の追加確認が必要です。",
+        Recommendation.BLOCKED_CANDIDATE: "支払ブロック候補です。",
+    }[recommendation]
+
+
+def review_invoice_packet(
+    *,
+    case_id: str,
+    tenant_id: str,
+    facts: CanonicalFacts,
+    pack_dir: str | Path,
+    artifact_dir: str | Path,
+) -> DecisionResult:
+    pack = Path(pack_dir)
+    refs = ReferenceData(pack)
+    ruleset = _load_ruleset(pack)
+    tolerance = float(ruleset["tolerances"]["amount_absolute_jpy"])
+    tax_tolerance = float(ruleset["tolerances"]["tax_rounding_jpy"])
+    match_results = {
+        "vendor_master": match_vendor_master(facts, refs),
+        "po_match": match_purchase_order(facts, refs, tolerance),
+        "grn_match": match_goods_receipt(facts),
+        "duplicate_check": duplicate_score(facts, refs),
+        "tax_check": tax_check(facts, refs, tax_tolerance),
+    }
+    rule_results = evaluate_rules(
+        facts=facts, refs=refs, pack_dir=pack, match_results=match_results
+    )
+    recommendation = choose_recommendation(rule_results)
+    draft_payloads = build_draft_payloads(case_id, facts, recommendation)
+    evidence: list[Evidence] = []
+    for result in rule_results:
+        for item in result.evidence:
+            if item not in evidence:
+                evidence.append(item)
+    if not evidence:
+        evidence = (
+            facts.invoice.total_amount.evidence
+            + facts.purchase_order.total_amount.evidence
+            + facts.goods_receipt.received_quantity.evidence
+        )
+
+    artifacts = _persist_artifacts(
+        case_id=case_id,
+        artifact_dir=Path(artifact_dir),
+        facts=facts,
+        match_results=match_results,
+        rule_results=rule_results,
+        recommendation=recommendation,
+        draft_payloads=draft_payloads,
+    )
+    return DecisionResult(
+        case_id=case_id,
+        tenant_id=tenant_id,
+        workflow_pack=WORKFLOW_PACK,
+        ruleset_version=RULESET_VERSION,
+        recommendation=recommendation,
+        recommendation_label_ja=recommendation.label_ja,
+        confidence=0.94 if recommendation is Recommendation.PAY_READY_CANDIDATE else 0.9,
+        summary=_summary_for(recommendation),
+        exceptions=[r.description for r in rule_results],
+        missing_information=sorted({m for r in rule_results for m in r.missing_information}),
+        match_results=match_results,
+        rule_results=rule_results,
+        evidence=evidence,
+        draft_payloads=draft_payloads,
+        audit_artifacts=artifacts,
+        write_performed=False,
+    )
+
+
+def _persist_artifacts(
+    *,
+    case_id: str,
+    artifact_dir: Path,
+    facts: CanonicalFacts,
+    match_results: dict[str, MatchResult],
+    rule_results: list[RuleResult],
+    recommendation: Recommendation,
+    draft_payloads: DraftPayloads,
+) -> AuditArtifacts:
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    def write(name: str, payload: Any) -> str:
+        path = artifact_dir / name
+        if hasattr(payload, "model_dump"):
+            body = payload.model_dump(mode="json")
+        elif isinstance(payload, list):
+            body = [p.model_dump(mode="json") if hasattr(p, "model_dump") else p for p in payload]
+        elif isinstance(payload, dict):
+            body = {
+                key: value.model_dump(mode="json") if hasattr(value, "model_dump") else value
+                for key, value in payload.items()
+            }
+        else:
+            body = payload
+        path.write_text(json.dumps(body, ensure_ascii=False, indent=2), "utf-8")
+        return str(path)
+
+    canonical = write("canonical_facts.json", facts)
+    vendor = write("vendor_match_result.json", match_results["vendor_master"])
+    po = write("po_match_result.json", match_results["po_match"])
+    grn = write("grn_match_result.json", match_results["grn_match"])
+    dup = write("duplicate_check_result.json", match_results["duplicate_check"])
+    rules = write("rule_result.json", rule_results)
+    draft = write("draft_payloads.json", draft_payloads)
+    decision = write(
+        "decision_result.json",
+        {
+            "case_id": case_id,
+            "recommendation": recommendation.value,
+            "rule_result_uri": rules,
+            "draft_payloads_uri": draft,
+            "write_performed": False,
+        },
+    )
+    trace = write(
+        "execution_trace.json",
+        {
+            "case_id": case_id,
+            "workflow_pack": WORKFLOW_PACK,
+            "ruleset_version": RULESET_VERSION,
+            "rule_engine_version": "0.1.0",
+            "tool_calls": [],
+            "warnings": [],
+        },
+    )
+    return AuditArtifacts(
+        canonical_facts_uri=canonical,
+        vendor_match_result_uri=vendor,
+        po_match_result_uri=po,
+        grn_match_result_uri=grn,
+        duplicate_check_result_uri=dup,
+        rule_result_uri=rules,
+        decision_result_uri=decision,
+        execution_trace_uri=trace,
+    )

@@ -1,0 +1,7 @@
+{
+  "name": "ap-invoice-review",
+  "version": "0.1.0",
+  "workflow_pack": "ap-invoice-v1",
+  "ruleset_version": "ap-demo-2026-01",
+  "external_write_allowed": false
+}

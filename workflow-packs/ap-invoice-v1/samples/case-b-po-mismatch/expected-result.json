@@ -1,0 +1,8 @@
+{
+  "case": "case-b-po-mismatch",
+  "recommendation": "REFER_PO_MISMATCH",
+  "rule_ids": [
+    "AP-PO-001"
+  ],
+  "write_performed": false
+}

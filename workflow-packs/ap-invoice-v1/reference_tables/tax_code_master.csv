@@ -1,0 +1,4 @@
+tax_code,rate,description
+JP10,0.10,Japan consumption tax 10 percent
+JP8,0.08,Japan reduced consumption tax 8 percent
+EXEMPT,0.00,Tax exempt

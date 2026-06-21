@@ -1,0 +1,5 @@
+receipt_number,po_number,received,received_quantity,receipt_date
+GRN-2026-0001,PO-2026-0001,true,100,2026-06-18
+GRN-2026-0002,PO-2026-0002,true,100,2026-06-18
+GRN-2026-0003,PO-2026-0003,true,100,2026-06-18
+GRN-2026-0004,PO-2026-0004,true,100,2026-06-18

@@ -1,0 +1,13 @@
+{
+  "vendor_id": "invoice.vendor_id",
+  "invoice_number": "invoice.invoice_number",
+  "invoice_date": "invoice.invoice_date",
+  "due_date": "invoice.due_date",
+  "currency": "invoice.currency",
+  "subtotal_amount": "invoice.subtotal_amount",
+  "tax_amount": "invoice.tax_amount",
+  "total_amount": "invoice.total_amount",
+  "po_number": "invoice.po_number",
+  "cost_center": "invoice.cost_center"
+}
+

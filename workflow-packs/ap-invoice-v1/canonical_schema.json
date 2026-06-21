@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "APInvoiceCanonicalFacts",
+  "type": "object",
+  "required": ["invoice", "purchase_order", "goods_receipt"],
+  "properties": {
+    "invoice": { "type": "object" },
+    "purchase_order": { "type": "object" },
+    "goods_receipt": { "type": "object" }
+  },
+  "additionalProperties": true
+}
+

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "APInvoiceDecisionResult",
+  "type": "object",
+  "required": [
+    "case_id",
+    "recommendation",
+    "exceptions",
+    "match_results",
+    "rule_results",
+    "draft_payloads",
+    "audit_artifacts"
+  ],
+  "properties": {
+    "case_id": { "type": "string" },
+    "recommendation": { "type": "string" },
+    "exceptions": { "type": "array" },
+    "match_results": { "type": "object" },
+    "rule_results": { "type": "array" },
+    "draft_payloads": { "type": "object" },
+    "audit_artifacts": { "type": "object" }
+  },
+  "additionalProperties": true
+}
+

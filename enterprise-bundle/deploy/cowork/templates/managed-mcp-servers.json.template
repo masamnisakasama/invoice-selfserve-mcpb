@@ -1,0 +1,23 @@
+{
+  "managedMcpServers": {
+    "ap-invoice-review": {
+      "url": "https://ap-review-mcp.example.com/mcp",
+      "transport": "streamable_http",
+      "toolPolicy": {
+        "allow": [
+          "create_ap_review_case",
+          "upload_ap_document",
+          "start_ap_invoice_review",
+          "get_ap_invoice_review_result",
+          "build_erp_draft_payload"
+        ],
+        "block": [
+          "write_*",
+          "create_payment",
+          "post_journal",
+          "update_erp_record"
+        ]
+      }
+    }
+  }
+}

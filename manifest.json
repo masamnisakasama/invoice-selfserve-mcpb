@@ -1,0 +1,17 @@
+{
+  "id": "ap-invoice-review",
+  "name": "AP Invoice Exception Review MCPB",
+  "version": "0.1.0",
+  "description": "Self-serve MCPB for deterministic AP invoice exception review.",
+  "server": {
+    "type": "stdio",
+    "command": "python",
+    "args": ["-m", "ap_invoice_mcp"]
+  },
+  "workflow_pack": "ap-invoice-v1",
+  "write_policy": {
+    "external_write_allowed": false,
+    "draft_payload_allowed": true
+  }
+}
+

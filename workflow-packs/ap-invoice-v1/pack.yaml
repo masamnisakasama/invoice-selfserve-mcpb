@@ -1,0 +1,24 @@
+pack_id: ap-invoice-v1
+name: AP Invoice Exception Review
+version: 0.1.0
+business_domain: accounts_payable
+supported_languages:
+  - ja
+  - en
+document_types:
+  - invoice
+  - purchase_order
+  - goods_receipt
+recommendations:
+  - PAY_READY_CANDIDATE
+  - REFER_PO_MISMATCH
+  - REFER_GRN_MISMATCH
+  - REFER_VENDOR_REVIEW
+  - REFER_DUPLICATE_REVIEW
+  - REFER_TAX_REVIEW
+  - REFER_INFO_REQUEST
+  - BLOCKED_CANDIDATE
+write_policy:
+  external_write_allowed: false
+  draft_payload_allowed: true
+

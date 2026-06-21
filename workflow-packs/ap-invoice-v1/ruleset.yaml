@@ -1,0 +1,97 @@
+ruleset_id: ap-demo-2026-01
+workflow_pack: ap-invoice-v1
+currency: JPY
+
+tolerances:
+  amount_absolute_jpy: 100
+  amount_percent: 0.005
+  tax_rounding_jpy: 1
+
+rules:
+  - id: AP-REQ-001
+    severity: high
+    category: required_fields
+    description: Invoice number is required.
+    when:
+      missing: invoice.invoice_number
+    then:
+      recommendation: REFER_INFO_REQUEST
+      missing_information:
+        - invoice.invoice_number
+
+  - id: AP-VENDOR-001
+    severity: critical
+    category: vendor_master
+    description: Vendor must exist in vendor master.
+    when:
+      not_found: vendor_master.vendor_id
+    then:
+      recommendation: REFER_VENDOR_REVIEW
+
+  - id: AP-VENDOR-002
+    severity: critical
+    category: vendor_master
+    description: Bank account must match vendor master.
+    when:
+      mismatch:
+        left: invoice.bank_account
+        right: vendor_master.bank_account
+    then:
+      recommendation: REFER_VENDOR_REVIEW
+
+  - id: AP-PO-001
+    severity: high
+    category: po_match
+    description: Invoice total must match PO total within tolerance.
+    when:
+      amount_diff_exceeds_tolerance:
+        left: invoice.total_amount
+        right: purchase_order.total_amount
+        tolerance: amount_absolute_jpy
+    then:
+      recommendation: REFER_PO_MISMATCH
+
+  - id: AP-GRN-001
+    severity: high
+    category: grn_match
+    description: Received quantity must cover invoiced quantity.
+    when:
+      less_than:
+        left: goods_receipt.received_quantity
+        right: invoice.total_quantity
+    then:
+      recommendation: REFER_GRN_MISMATCH
+
+  - id: AP-DUP-001
+    severity: critical
+    category: duplicate_check
+    description: Duplicate invoice candidate found.
+    when:
+      duplicate_score_at_least: 80
+    then:
+      recommendation: REFER_DUPLICATE_REVIEW
+
+  - id: AP-TAX-001
+    severity: high
+    category: tax_check
+    description: Invoice tax amount must match expected tax rate.
+    when:
+      tax_diff_exceeds_tolerance:
+        subtotal: invoice.subtotal_amount
+        tax_amount: invoice.tax_amount
+        tax_code: invoice.tax_code
+        tolerance: tax_rounding_jpy
+    then:
+      recommendation: REFER_TAX_REVIEW
+
+  - id: AP-BLOCK-001
+    severity: critical
+    category: blocked_vendor
+    description: Vendor is blocked for payment.
+    when:
+      equals:
+        left: vendor_master.blocked
+        right: true
+    then:
+      recommendation: BLOCKED_CANDIDATE
+

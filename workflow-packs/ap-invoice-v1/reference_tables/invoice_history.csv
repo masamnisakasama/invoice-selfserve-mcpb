@@ -1,0 +1,3 @@
+vendor_id,invoice_number,invoice_date,total_amount,bank_account,line_item_hash
+V-1001,INV-2026-0007,2026-06-20,110000,0001-1234567,office-supplies-100
+V-2002,INV-2026-0100,2026-06-01,55000,0005-7654321,logistics-base

@@ -1,0 +1,11 @@
+document_types:
+  - id: invoice
+    required: true
+    file_name: invoice.pdf
+  - id: purchase_order
+    required: true
+    file_name: purchase_order.pdf
+  - id: goods_receipt
+    required: true
+    file_name: goods_receipt.pdf
+

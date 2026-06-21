@@ -1,0 +1,6 @@
+{
+  "case": "case-a-pay-ready",
+  "recommendation": "PAY_READY_CANDIDATE",
+  "rule_ids": [],
+  "write_performed": false
+}

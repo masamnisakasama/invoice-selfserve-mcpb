@@ -1,0 +1,46 @@
+[project]
+name = "ap-invoice-selfserve-mcpb"
+version = "0.1.0"
+description = "AP Invoice Exception Review self-serve MCPB demo"
+requires-python = ">=3.11"
+dependencies = [
+  "mcp>=1.2",
+  "pydantic>=2.5",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.27",
+  "mypy>=1.8",
+  "pytest>=8.0",
+  "ruff>=0.4",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+  "ap_invoice_core",
+  "ap_invoice_mcp",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+markers = [
+  "anyio: async tests run via the anyio pytest plugin",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true

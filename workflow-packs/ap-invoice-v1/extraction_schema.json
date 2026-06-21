@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "APInvoiceExtractionSidecar",
+  "type": "object",
+  "required": ["document_type", "fields"],
+  "properties": {
+    "document_type": { "enum": ["invoice", "purchase_order", "goods_receipt"] },
+    "fields": { "type": "object" }
+  },
+  "additionalProperties": false
+}
+
